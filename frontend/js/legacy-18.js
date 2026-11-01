@@ -158,10 +158,10 @@ function findWhiteSpongeReference(source,sensorPoints=[]){
   drawFrame=function(){
     originalDraw();const selected=state.selected,points=state.picking?state.pending:selected?.metadata.polygon;
     if(!points?.length)return;
-    const ctx=frame.getContext('2d');ctx.save();ctx.strokeStyle='white';ctx.lineWidth=1.5;ctx.setLineDash([5,4]);ctx.beginPath();
+    const ctx=frame.getContext('2d');ctx.save();ctx.strokeStyle='#8cb8ff';ctx.lineWidth=1.5;ctx.setLineDash([5,4]);ctx.beginPath();
     points.forEach(([x,y],i)=>i?ctx.lineTo(x*cxW,y*cxH):ctx.moveTo(x*cxW,y*cxH));if(points.length>=3)ctx.closePath();ctx.stroke();ctx.setLineDash([]);
     if(state.picking){ctx.fillStyle='white';for(const [x,y]of points)ctx.fillRect(x*cxW-3,y*cxH-3,6,6);}
-    else{ctx.lineWidth=2;ctx.beginPath();selected.metadata.corners.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.stroke();}
+    else{ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.beginPath();selected.metadata.corners.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.stroke();}
     ctx.restore();
   };
   config=function(){const c=originalConfig();c.white_reference=state.selected?structuredClone(state.selected.metadata):{version:1,mode:'rectangle',bounds:white.slice(),analysis_resolution:[cxW,cxH]};return c;};

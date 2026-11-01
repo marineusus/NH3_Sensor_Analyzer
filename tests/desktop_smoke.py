@@ -58,6 +58,13 @@ excel_bytes:excelBytes(d).length,zip_bytes:zip([['settings.json',JSON.stringify(
             api.close();window.destroy()
     window.events.loaded+=lambda:None
     webview.start(run,gui='edgechromium')
+baseline=ROOT/'tests/fixtures/analysis-baseline.json'
+if baseline.exists() and not result.get('failure'):
+    expected=json.loads(baseline.read_text(encoding='utf-8'))
+    for key,value in expected.items():
+        if result.get(key)!=value:
+            result['failure']='Numerical/UI baseline mismatch: '+key
+            break
 print(json.dumps(result,ensure_ascii=False,indent=2))
 if result.get('failure') or result.get('errors') or result.get('rows')!=16 or result.get('excel_bytes',0)<1000 or result.get('report_pages',0)<1 or not result.get('photo_ok'):
     raise SystemExit(1)
