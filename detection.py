@@ -69,3 +69,49 @@ def detect_sponges(frame, search=None):
                            label='스펀지 후보',method='colored/dark compact textured component; user confirmation required'))
     result.sort(key=lambda r:r['bounds'][0])
     return result
+
+def select_sponge(frame, point, search=None):
+    """User seed chooses one object. Detection never chooses a different object."""
+    px,py=map(float,point)
+    if not (0<=px<=1 and 0<=py<=1):
+        raise ValueError('화면 안의 스펀지 중앙을 클릭하세요.')
+    for candidate in detect_sponges(frame,search):
+        contour=np.array(candidate['polygon'],dtype=np.float32)
+        if cv2.pointPolygonTest(contour,(px,py),False)>=0:
+            return candidate
+    # White/translucent material can resemble its backdrop. Seeded GrabCut is
+    # only a geometry proposal; original pixels are still used for all analysis.
+    image=cv2.resize(frame,(480,270),interpolation=cv2.INTER_LINEAR)
+    cx,cy=min(479,round(px*480)),min(269,round(py*270))
+    patch=image[max(0,cy-12):min(270,cy+13),max(0,cx-12):min(480,cx+13)].mean(axis=2)
+    if patch.std()<5:
+        raise ValueError('스펀지 질감이 있는 중앙 부분을 클릭하세요. 불확실하면 수동 윤곽 지정을 사용하세요.')
+    x0,x1=max(1,cx-120),min(479,cx+120)
+    y0,y1=max(1,cy-125),min(269,cy+125)
+    if search:
+        x,y,w,h=search
+        x0,x1=max(x0,round(x*480)),min(x1,round((x+w)*480))
+        y0,y1=max(y0,round(y*270)),min(y1,round((y+h)*270))
+    if not (x0<cx<x1 and y0<cy<y1):
+        raise ValueError('검색 범위 안의 스펀지 중앙을 클릭하세요.')
+    mask=np.zeros((270,480),np.uint8)
+    mask[y0:y1,x0:x1]=cv2.GC_PR_FGD
+    seed=np.zeros_like(mask);cv2.circle(seed,(cx,cy),6,1,-1)
+    mask[(seed==1)&(mask==cv2.GC_PR_FGD)]=cv2.GC_FGD
+    cv2.setRNGSeed(82)
+    cv2.grabCut(image,mask,None,np.zeros((1,65)),np.zeros((1,65)),5,cv2.GC_INIT_WITH_MASK)
+    foreground=((mask==cv2.GC_FGD)|(mask==cv2.GC_PR_FGD)).astype(np.uint8)
+    contours,_=cv2.findContours(foreground,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    for contour in contours:
+        if cv2.pointPolygonTest(contour,(cx,cy),False)<0:
+            continue
+        area=cv2.contourArea(contour);x,y,w,h=cv2.boundingRect(contour)
+        if area<630 or area>480*270*.48 or min(w,h)<20 or min(w,h)/max(w,h)<.3 or area/(w*h)<.35:
+            break
+        # Refuse a segmentation that simply fills the entire initial rectangle.
+        if area>(x1-x0)*(y1-y0)*.9:
+            break
+        poly=cv2.approxPolyDP(contour,.65,True).reshape(-1,2)
+        return dict(polygon=(poly/np.array([480,270])).tolist(),area=float(area),bounds=[x/480,y/270,w/480,h/270],
+                    label='클릭한 스펀지',method='user seed; GrabCut geometry proposal; fixed original pixels')
+    raise ValueError('클릭한 스펀지의 윤곽을 확실히 구분하지 못했습니다. 검색 범위를 지정하거나 수동 윤곽 지정을 사용하세요.')

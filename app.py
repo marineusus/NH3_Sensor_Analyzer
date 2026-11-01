@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 from analyzer import (VideoReader, analyze_video, prepare_roi, sample, png_base64,
                       white_stats, corrected_pixels, W, H)
-from detection import detect_sponges
+from detection import detect_sponges, select_sponge
 
 ROOT = Path(__file__).resolve().parent
 
@@ -67,6 +67,14 @@ class Api:
         try:
             frame,_,_=reader.read(target)
             return detect_sponges(frame,search)
+        finally:
+            reader.close()
+
+    def select_sponge(self, fid, target, point, search=None):
+        reader=VideoReader(self._files[fid])
+        try:
+            frame,_,_=reader.read(target)
+            return select_sponge(frame,point,search)
         finally:
             reader.close()
 

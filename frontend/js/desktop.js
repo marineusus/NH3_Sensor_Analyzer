@@ -17,7 +17,7 @@ seekFrame=async function(target){
  return {time:result.time,source:result.source};
 };
 showPreviewBase=async function(){
- if(busy)throw Error('추출 중에는 미리보기를 바꿀 수 없습니다.');
+ if(busy||desktopSelecting)throw Error('추출 또는 윤곽 선택이 끝난 뒤 미리보기를 바꾸세요.');
  const f=files[Number($('previewVideo').value)];if(!f)throw Error('먼저 영상을 선택하세요.');
  const duration=await loadVideo(f);$('previewTime').max=Math.max(0,duration-.1);
  $('videoDurationLabel').textContent='전체 길이 '+formatSeconds(duration);
@@ -27,12 +27,12 @@ showPreviewBase=async function(){
 };
 
 async function desktopChoose(){
- if(busy||photoBusy||qualityReviewLoading)return;
+ if(busy||photoBusy||qualityReviewLoading||desktopSelecting)return;
  try{
   $('desktopOpen').disabled=true;const selected=await desktopCall('choose_videos');
   if(!selected.length)return;
   files=selected;fileMeta=files.map(f=>({...f}));uiVideoMeta=uiMeta();listFiles();
-  $('previewTime').value=0;desktopCandidates.replaceChildren();await showPreview();
+  $('previewTime').value=0;await showPreview();
  }catch(e){status(e.message,true);}finally{$('desktopOpen').disabled=false;}
 }
 
@@ -80,29 +80,38 @@ async function readerPost(action,p){
  return desktopCall('responsive',p.id,p.time,p.global_time,p.mode,p.excluded_times);
 }
 
-const desktopCandidates=uiEl('div');desktopCandidates.id='desktopCandidates';
-const desktopPanel=uiEl('div');desktopPanel.className='researchFold';
-desktopPanel.append(uiEl('p','스펀지 후보가 여러 개면 분석할 하나를 선택하세요. 윤곽 확인 후 기존 Edge 제외·내부 직사각형을 적용합니다.','hint'),desktopCandidates);
-$('frame').parentElement.append(desktopPanel);
-autoSensorBase=async function(){
- try{
-  if(busy||photoBusy||qualityReviewLoading)return;
-  if(!desktopCurrentFile)throw Error('영상 미리보기를 먼저 불러오세요.');
-  status('OpenCV 스펀지 후보 찾는 중…');desktopCandidates.replaceChildren();
-  const candidates=await desktopCall('detect',desktopCurrentFile.id,cxFrame?.time_s||0,searchROI);
-  if(!candidates.length)throw Error('확실한 스펀지 후보를 찾지 못했습니다. 검색 범위를 좁히거나 기존 수동 윤곽 지정을 사용하세요.');
-  for(const [i,candidate]of candidates.entries()){
-   const button=uiEl('button','후보 '+(i+1)+(candidates.length===2?(i===0?' · 왼쪽':' · 오른쪽'):''));
-   const thumb=document.createElement('canvas');thumb.width=180;thumb.height=110;
-   const [x,y,w,h]=candidate.bounds;thumb.getContext('2d').drawImage(surface,x*960,y*540,w*960,h*540,0,0,180,110);button.prepend(thumb);
-   button.onclick=()=>{if(busy)return;sensor=candidate.polygon.map(p=>p.slice());mode='none';cxCache=null;cxReference=cxFrame&&{...cxFrame};
-    drawFrame();status('후보 '+(i+1)+' 선택 · 센서 윤곽과 초록색 내부 ROI를 확인한 뒤 추출하세요.');
-    [...desktopCandidates.children].forEach(b=>b.classList.toggle('active',b===button));};
-   desktopCandidates.append(button);
-  }
-  status('스펀지 후보 '+candidates.length+'개 · 아래 사진에서 분석할 하나를 선택하세요.');
- }catch(e){status(e.message,true);}
+// One click chooses the sensor; no automatic selection of the other sponge.
+let desktopSelecting=false,desktopSelectionEpoch=0;
+const desktopClickHint=uiEl('p','스펀지 클릭 선택을 누른 뒤 분석할 스펀지의 중앙을 클릭하세요. 기존 수동 윤곽 지정도 사용할 수 있습니다.','hint');
+$('frame').parentElement.append(desktopClickHint);
+const desktopSensorButton=[...document.querySelectorAll('button')].find(b=>b.getAttribute('onclick')?.includes('autoSensor('));
+if(desktopSensorButton){desktopSensorButton.textContent='스펀지 클릭 선택';desktopSensorButton.title='분석할 스펀지의 중앙을 직접 클릭합니다.';}
+autoSensorBase=function(){
+ if(busy||photoBusy||qualityReviewLoading||desktopSelecting)return;
+ if(!desktopCurrentFile){status('영상 미리보기를 먼저 불러오세요.',true);return;}
+ if(globalThis.whiteSpongeReference?.picking)$('whiteSpongeButton').click();
+ if(mode==='desktopSensor'){mode='none';status('스펀지 클릭 선택 취소 · 이전 ROI를 유지합니다.');return;}
+ anchor=null;mode='desktopSensor';
+ status('분석할 스펀지의 중앙을 클릭하세요. 두 개가 보여도 클릭한 하나만 선택합니다.');
+ $('roiHint').textContent='분석할 스펀지 중앙 클릭 → 윤곽 확인 → 기존 Edge 제외·내부 직사각형 적용';
 };
+const desktopPointerDown=$('frame').onpointerdown,desktopPointerMove=$('frame').onpointermove,desktopPointerUp=$('frame').onpointerup;
+$('frame').onpointerdown=async function(e){
+ if(mode!=='desktopSensor')return desktopPointerDown?.call(this,e);
+ e.preventDefault();if(desktopSelecting||busy||photoBusy||qualityReviewLoading)return;
+ const rect=this.getBoundingClientRect(),point=[(e.clientX-rect.left)/rect.width,(e.clientY-rect.top)/rect.height];
+ const file=desktopCurrentFile,frame={...cxFrame},epoch=++desktopSelectionEpoch;
+ desktopSelecting=true;if(desktopSensorButton)desktopSensorButton.disabled=true;
+ try{
+  status('클릭한 스펀지 윤곽을 잡는 중…');
+  const selected=await desktopCall('select_sponge',file.id,frame.time_s,point,searchROI);
+  if(epoch!==desktopSelectionEpoch||desktopCurrentFile?.id!==file.id||cxFrame?.time_s!==frame.time_s)return;
+  sensor=selected.polygon.map(p=>p.slice());mode='none';anchor=null;cxCache=null;cxReference=frame;
+  drawFrame();status('클릭한 스펀지 선택 완료 · 노란 윤곽과 초록 내부 ROI를 확인한 뒤 색상 추출을 시작하세요.');
+ }catch(error){status(error.message,true);}finally{desktopSelecting=false;if(desktopSensorButton)desktopSensorButton.disabled=false;}
+};
+$('frame').onpointermove=function(e){if(mode==='desktopSensor'||desktopSelecting)return;return desktopPointerMove?.call(this,e);};
+$('frame').onpointerup=function(e){if(mode==='desktopSensor'||desktopSelecting)return;return desktopPointerUp?.call(this,e);};
 
 const desktopOpen=uiEl('button','OpenCV 영상 선택');desktopOpen.id='desktopOpen';desktopOpen.className='primary';desktopOpen.onclick=desktopChoose;
 $('videoFiles').before(desktopOpen);$('videoFiles').hidden=true;

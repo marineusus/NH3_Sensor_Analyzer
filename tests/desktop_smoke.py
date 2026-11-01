@@ -40,9 +40,10 @@ window.smokeErrors=[];window.addEventListener('error',e=>smokeErrors.push(e.mess
 window.smokeDone=false;
 (async()=>{try{await showPreview();await start();
 const c=config();const a=assess(weights,c);const g=cxMetadata(cxGeometry(c));
-window.smokeResult={status:$('status').textContent,rows:rows.length,first:rows[0],last:rows.at(-1),calibration:researchCalibration,
+const d=exportData(),info=readReportInfo();info.photos=false;const pages=buildReportPages(a,rank(),checkDataQuality(a),calculateCalibration(a),info,[]);const photo=await captureSensorPhoto(rows[0]);
+window.smokeResult={report_pages:pages.length,photo_ok:!!photo,status:$('status').textContent,rows:rows.length,first:rows[0],last:rows.at(-1),calibration:researchCalibration,
 cycles:a.cycles,geometry:g,raw:researchRawRecords().length,relative:crRelativeRecords().length,
-excel_bytes:excelBytes(exportData()).length,errors:smokeErrors};
+excel_bytes:excelBytes(d).length,zip_bytes:zip([['settings.json',JSON.stringify(d.settings)],['colors.csv',csv(d.colors)]]).length,errors:smokeErrors};
 }catch(e){window.smokeResult={failure:e.stack};}finally{window.smokeDone=true;}})();
 '''.replace('FILES',json.dumps(files))
             window.run_js(setup)
@@ -58,7 +59,7 @@ excel_bytes:excelBytes(exportData()).length,errors:smokeErrors};
     window.events.loaded+=lambda:None
     webview.start(run,gui='edgechromium')
 print(json.dumps(result,ensure_ascii=False,indent=2))
-if result.get('failure') or result.get('errors') or result.get('rows')!=16 or result.get('excel_bytes',0)<1000:
+if result.get('failure') or result.get('errors') or result.get('rows')!=16 or result.get('excel_bytes',0)<1000 or result.get('report_pages',0)<1 or not result.get('photo_ok'):
     raise SystemExit(1)
 
 
