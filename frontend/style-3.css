@@ -1,0 +1,20 @@
+
+#combinationCard{padding:10px 12px;margin:10px 0;border-radius:7px}
+#combinationCard>strong{font-size:12px}
+#combinationCard h3{font-size:13px;margin:8px 0;line-height:1.45}
+#combinationCard .hint{font-size:11px;line-height:1.5;margin:8px 0}
+#combinationCard details{margin-top:7px}
+#mixBar{min-height:20px!important;height:20px;border-radius:4px;margin-top:8px;gap:1px}
+#mixBar>div{min-width:24px;padding:1px 0!important;font-size:10px}
+#sliders .slider{margin:5px 0;min-height:28px}
+#sliders .channelDot{width:21px;height:21px;font-size:11px;flex-shrink:0}
+#sliders .channelLabel{gap:6px;font-size:12px}
+#sliders .slider>span:last-child{font-size:12px;font-variant-numeric:tabular-nums;text-align:right;color:#526b7c}
+html[data-theme=dark] #sliders .slider>span:last-child{color:#cfc5de}
+#sliders input[type=range]{--weight-track:#e3e8ec;appearance:none;-webkit-appearance:none;height:22px;border:0!important;border-radius:0;padding:0!important;background:transparent;cursor:pointer;outline:none}
+html[data-theme=dark] #sliders input[type=range]{--weight-track:#413c57}
+#sliders input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:4px;border:0;background:linear-gradient(to right,var(--weight-track) 0%,var(--weight-track) var(--range-start,50%),var(--slider-color,#087f83) var(--range-start,50%),var(--slider-color,#087f83) var(--range-end,50%),var(--weight-track) var(--range-end,50%),var(--weight-track) 100%)}
+#sliders input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:12px;height:12px;margin-top:-4px;background:#fff;border:2px solid var(--slider-color,#087f83);border-radius:50%;box-shadow:0 1px 3px #19304425}
+#sliders input[type=range]::-moz-range-track{height:4px;border-radius:4px;background:linear-gradient(to right,var(--weight-track) 0%,var(--weight-track) var(--range-start,50%),var(--slider-color,#087f83) var(--range-start,50%),var(--slider-color,#087f83) var(--range-end,50%),var(--weight-track) var(--range-end,50%),var(--weight-track) 100%)}
+#sliders input[type=range]::-moz-range-thumb{width:9px;height:9px;border:2px solid var(--slider-color,#087f83);background:white;border-radius:50%;box-shadow:0 1px 3px #19304425}
+#sliders input[type=range]:focus-visible{outline:2px solid #91afb655;outline-offset:2px;border-radius:4px}

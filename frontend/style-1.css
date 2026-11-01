@@ -1,0 +1,71 @@
+/* Navy / plum laboratory dashboard */
+:root{color-scheme:dark;--panel:#201e3a;--line:#3c3556;--muted:#b1a9c5;--ink:#f3effb}
+body{background:radial-gradient(ellipse at 100% 10%,#49244155,transparent 48%),linear-gradient(140deg,#111a34,#251733);color:var(--ink);font-family:'Segoe UI','Malgun Gothic',sans-serif}
+body>header{background:linear-gradient(110deg,#49304f,#222348 65%,#182842);border-bottom:1px solid #5e466b;padding:18px 26px}
+body>header h1{font-size:23px;letter-spacing:-.6px}
+body>header p{font-size:12px;color:#c5b9d4}
+.card,.analysisGrid>.card{background:linear-gradient(140deg,#25213e,#1b203b);border:1px solid #3b3554;border-radius:8px;box-shadow:0 6px 18px #090c1b30}
+h2,.setupGrid h2{color:#f6f0fd;font-size:16px;font-weight:600}
+h3{color:#e3dcf1}
+label{color:#c8c0d9;font-size:13px}
+.hint,.helpFold{color:#b1a9c5}
+input,textarea,select{background:#171c33;border:1px solid #4a4163;color:#eee8f8;border-radius:5px;font-size:13px}
+input::placeholder,textarea::placeholder{color:#9990ae}
+input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid #b78ae4;outline-offset:2px}
+input[type=file]::file-selector-button{background:#554171;color:#f8f3fc;border:0;border-radius:3px;padding:5px 9px;margin-right:10px}
+button{background:#302744;color:#eee6f6;border:1px solid #605073;border-radius:5px;font-size:13px;padding:8px 12px}
+button:hover{background:#463353;border-color:#9471af}
+button.primary{background:linear-gradient(115deg,#7a4eac,#9f4e91);border-color:#9b6fc0;color:#fff}
+button.primary:hover{background:linear-gradient(115deg,#895cbc,#b15ca3)}
+.status{background:#2a2947;border:1px solid #544366;border-left:3px solid #a47cca;color:#ded5ef;border-radius:6px}
+.status.error{background:#462d3e;color:#ffc3bc;border-color:#81505b}
+canvas{background:#151b32;border-radius:5px}
+#videoSummary,#saveFeedback{background:#1b223a;border:1px solid #3e3d59;border-radius:5px;color:#c8c2d7}
+.mixCard{background:#29223f;border:1px solid #5a426d;border-radius:6px}
+.mixCard strong{color:#bfb0d3}
+.mixCard h3{color:#edddff}
+.mixBar{border-radius:4px;min-height:25px}
+.channelDot{border-radius:5px}
+th{background:#302840;color:#ded3ed;border-bottom:1px solid #534362}
+td{color:#e5deef;border-color:#3b354d}
+#rank tr:hover{background:#3a2b4d}
+#rank td:first-child{color:#e59bcd}
+.candidateChoice>div[style*="overflow"]{border-color:#4b3b5c;border-radius:5px}
+#rankTable button{background:#3d3155}
+.summaryGrid>div,.analysisGrid .summaryGrid>div{background:#272641;border:1px solid #47415d;border-radius:5px}
+.summaryGrid strong{color:#f4e7ff}
+.analysisGrid #keyMetrics .metricGrid{gap:10px}
+.analysisGrid #keyMetrics .metricGrid>div{border-radius:7px;border:1px solid #ffffff17;padding:14px;background:#43315d;box-shadow:0 4px 10px #0b102d44}
+.analysisGrid #keyMetrics .metricGrid>div:nth-child(1){background:linear-gradient(125deg,#d79718,#bd7839)}
+.analysisGrid #keyMetrics .metricGrid>div:nth-child(2){background:linear-gradient(125deg,#6955be,#4b4d9c)}
+.analysisGrid #keyMetrics .metricGrid>div:nth-child(3){background:linear-gradient(125deg,#188998,#286883)}
+.analysisGrid #keyMetrics .metricGrid>div:nth-child(4){background:linear-gradient(125deg,#b94d99,#924783)}
+.analysisGrid #keyMetrics .metricGrid>div:nth-child(5){background:linear-gradient(125deg,#50885a,#376d6c)}
+.analysisGrid .metricGrid span,.analysisGrid .metricGrid small{color:#f9f4ffe0}
+.analysisGrid .metricGrid strong{color:white;font-size:21px;font-variant-numeric:tabular-nums}
+.setupRight #progressCard{background:#27233e;border:1px solid #4f4162;border-radius:6px}
+.progressPercent{color:#d7a0ed}
+progress{accent-color:#b077cd}
+#previewTime{accent-color:#ba82d7}
+.basis{background:#47323e;color:#f2ceb2;border-radius:5px}
+.basis.confirmed{background:#244137;color:#b5e7c9}
+.timeGood{color:#7ce1c4}
+.timeMissing{background:#473643;color:#f1c08c}
+.phaseGas{background:#573542;color:#ffd2aa}
+.phaseAir{background:#263956;color:#b6d8fa}
+.phaseInitial{background:#32324a;color:#c6bdd8}
+.coverage{background:#2b403a;color:#c5e5d6}
+.coverage.missing{background:#493642;color:#edc59f}
+#firstTimingNote{color:#d2b38f}
+.recoveryTrack{background:#3c3a52}
+.legend .gas:before{background:#b17b62}
+.legend .air:before{background:#6a83b2}
+details summary{color:#c0b3d1}
+#overlayPanel{border-color:#50425e}
+#sensorPhotos,.reportDialog{background:#201f38;color:#f1eafa;border-color:#5a456c;border-radius:8px}
+#sensorPhotos::backdrop,.reportDialog::backdrop{background:#0b102ac7}
+.sensorPhoto{background:#27243f;border-color:#50415f;border-radius:6px}
+.sensorPhoto img{background:#151b32}
+.photoError{color:#ffb0a3}
+.active{background:#83569d!important;color:white!important}
+#reportPreview{background:#e7edf0;border-color:#645071}

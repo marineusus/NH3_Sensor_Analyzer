@@ -1,0 +1,1 @@
+if(!rows.length){$('rank').replaceChildren();$('rankNote').textContent='색상 추출 또는 CSV 불러오기 후 후보 비교하고 추천을 눌러주세요.'}

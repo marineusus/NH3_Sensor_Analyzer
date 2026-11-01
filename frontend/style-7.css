@@ -1,0 +1,8 @@
+
+#rankTable{min-width:880px}
+#rank tr[data-weights]{cursor:pointer}
+#rank tr.candidateSelected{background:#e1f1ef}
+#rank tr.candidateSelected>td:first-child{box-shadow:inset 3px 0 #087f83}
+#rank tr[data-weights]:focus-visible{outline:2px solid #6ca9ad;outline-offset:-2px}
+html[data-theme=dark] #rank tr.candidateSelected{background:#493253}
+html[data-theme=dark] #rank tr.candidateSelected>td:first-child{box-shadow:inset 3px 0 #d191d0}
