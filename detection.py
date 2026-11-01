@@ -86,8 +86,8 @@ def select_sponge(frame, point, search=None):
     patch=image[max(0,cy-12):min(270,cy+13),max(0,cx-12):min(480,cx+13)].mean(axis=2)
     if patch.std()<5:
         raise ValueError('스펀지 질감이 있는 중앙 부분을 클릭하세요. 불확실하면 수동 윤곽 지정을 사용하세요.')
-    x0,x1=max(1,cx-120),min(479,cx+120)
-    y0,y1=max(1,cy-125),min(269,cy+125)
+    x0,x1=max(5,cx-115),min(475,cx+115)
+    y0,y1=max(3,cy-140),min(267,cy+140)
     if search:
         x,y,w,h=search
         x0,x1=max(x0,round(x*480)),min(x1,round((x+w)*480))

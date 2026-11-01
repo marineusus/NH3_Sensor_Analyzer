@@ -7,7 +7,7 @@ async function desktopCall(method,...args){await desktopReady;return window.pywe
 
 loadVideo=async function(file){
  if(!file?.id)throw Error('OpenCV 영상 선택 버튼으로 원본 영상을 선택하세요.');
- desktopCurrentFile=file;cxFrame={file:file.name,time_s:0};return file.duration_s;
+ await desktopCall('set_decoder_mode',$('desktopDecoder')?.value||'auto');desktopCurrentFile=file;cxFrame={file:file.name,time_s:0};return file.duration_s;
 };
 seekFrame=async function(target){
  if(!desktopCurrentFile)throw Error('영상을 선택하세요.');
@@ -40,6 +40,7 @@ async function desktopExtract(){
  if(busy)return;if(photoBusy||qualityReviewLoading)throw Error('사진 읽기가 끝난 뒤 추출하세요.');
  const c=config();validate(c);if(!files.length)throw Error('영상을 선택하세요.');
  const roi=buildROI(c),payloadROI={ids_runs:cxRuns(roi.ids),rect:roi.rect,geometry:roi.geometry,variants:roi.variants,white_reference:roi.white_reference};
+ c.decoder_mode=$('desktopDecoder').value;
  c.relative_start=Number($('relativeStart').value);c.relative_end=Number($('relativeEnd').value);
  c.research_calibration=structuredClone(researchCalibration);c.source='OpenCV FFmpeg local original; no upload or reencoding';
  c.decoder={backend:'OpenCV FFmpeg',resize:'960×540 letterbox, INTER_LINEAR',timestamp:'presentation milliseconds; fallback explicitly marked',compatibility:'equations and masks preserved; browser/OpenCV decoded pixels may differ'};
@@ -115,8 +116,23 @@ $('frame').onpointerup=function(e){if(mode==='desktopSensor'||desktopSelecting)r
 
 const desktopOpen=uiEl('button','OpenCV 영상 선택');desktopOpen.id='desktopOpen';desktopOpen.className='primary';desktopOpen.onclick=desktopChoose;
 $('videoFiles').before(desktopOpen);$('videoFiles').hidden=true;
+const desktopDecoder=uiEl('select');desktopDecoder.id='desktopDecoder';desktopDecoder.setAttribute('aria-label','영상 디코더');
+desktopDecoder.innerHTML='<option value="auto">영상 디코더 · 자동 GPU 가속 (지원 시)</option><option value="software">영상 디코더 · CPU (비교·재현용)</option>';
+desktopOpen.after(desktopDecoder);desktopDecoder.onchange=async()=>{if(busy){desktopDecoder.value=extractionSettings?.decoder_mode||'auto';return;}try{await desktopCall('set_decoder_mode',desktopDecoder.value);if(files.length)await showPreview();status('디코더 변경 · 이전 색상값은 유지합니다. 새 디코더 값은 재추출부터 적용됩니다.');}catch(e){status(e.message,true);}};
+const decoderNote=uiEl('p','GPU 가속은 지원되지 않으면 CPU로 읽습니다. 디코더에 따라 픽셀값이 조금 다를 수 있어 설정과 실제 가속 방식을 기록합니다.','hint');desktopDecoder.after(decoderNote);
 const desktopHint=uiEl('p','원본 영상은 PC에서 직접 읽습니다. 여러 파일은 선택 순서를 확인해 연결하세요. 분석 FPS는 기존 설정을 그대로 사용합니다.','hint');desktopOpen.after(desktopHint);
 // WebView2 download handling is enabled in app.py, preserving CSV/XLSX/report exports.
 desktopReady.then(()=>status('OpenCV 연결 완료 · 영상 선택 후 기존 방식으로 ROI와 실험 시간을 설정하세요.'));
 const desktopExportBase=exportData;
 exportData=function(){const d=desktopExportBase();d.settings.method='OpenCV FFmpeg decode; 960x540 letterbox INTER_LINEAR; exact frontend ROI pixel runs; float64 original per-pixel RGB/HSV equations; fixed ROI; no motion correction';d.settings.source='NH3 Sensor Analyzer desktop / Python OpenCV';d.settings.timing='OpenCV presentation milliseconds; frame-index/FPS fallback explicitly recorded; requested and actual times exported separately';d.settings.decoder=extractionSettings?.decoder||{status:'imported CSV; see original extraction settings'};return d;};
+
+const desktopConfigBase=config;config=function(){const c=desktopConfigBase();c.decoder_mode=$('desktopDecoder')?.value||'auto';return c;};
+
+const desktopSettingsImport=$('researchSettingsFile').onchange;
+$('researchSettingsFile').onchange=async function(e){
+ let saved=null;try{const f=e.target.files?.[0];if(f){const data=JSON.parse(await f.text());saved=data.analysis||data.settings?.analysis;}}catch{}
+ await desktopSettingsImport.call(this,e);
+ if(saved&&['auto','software'].includes(saved.decoder_mode)&&!$('status').classList.contains('error')){
+  $('desktopDecoder').value=saved.decoder_mode;await desktopCall('set_decoder_mode',saved.decoder_mode);
+ }
+};

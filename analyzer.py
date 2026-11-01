@@ -68,9 +68,14 @@ def pixel_stats(rgb, gain=None):
 
 
 class VideoReader:
-    def __init__(self, path):
+    def __init__(self, path, decoder_mode='auto'):
         self.path = str(path)
-        self.cap = cv2.VideoCapture(self.path, cv2.CAP_FFMPEG)
+        params=[cv2.CAP_PROP_HW_ACCELERATION,cv2.VIDEO_ACCELERATION_ANY if decoder_mode=='auto' else cv2.VIDEO_ACCELERATION_NONE]
+        self.cap = cv2.VideoCapture(self.path, cv2.CAP_FFMPEG,params)
+        if not self.cap.isOpened() and decoder_mode=='auto':
+            self.cap = cv2.VideoCapture(self.path, cv2.CAP_FFMPEG)
+        self.acceleration=int(self.cap.get(cv2.CAP_PROP_HW_ACCELERATION)) if self.cap.isOpened() else 0
+        self.decoder_mode=decoder_mode
         if not self.cap.isOpened():
             raise ValueError(f'Cannot open video: {Path(path).name}')
         self.fps = self.cap.get(cv2.CAP_PROP_FPS)
@@ -86,13 +91,13 @@ class VideoReader:
 
     def metadata(self):
         return dict(name=Path(self.path).name, duration_s=self.duration,
-                    width=self.width, height=self.height, fps=self.fps, frames=int(self.frames))
+                    width=self.width, height=self.height, fps=self.fps, frames=int(self.frames),decoder_mode=self.decoder_mode,hw_acceleration=self.acceleration)
 
     def read(self, target):
         target = max(0.0, min(float(target), self.duration - .001))
         # Seek by presentation time. FFmpeg seeks to a keyframe and decodes forward.
         # Nearby targets use grab(), avoiding repeated keyframe decoding.
-        if self.last_time is None or target <= self.last_time + 1e-7 or target - self.last_time > 2:
+        if self.last_time is None or target <= self.last_time + 1e-7 or target - self.last_time > .5:
             if not self.cap.set(cv2.CAP_PROP_POS_MSEC, target * 1000):
                 raise ValueError('Decoder could not seek to requested time')
         ok, bgr = self.cap.read()
@@ -263,7 +268,7 @@ def prepare_baseline(paths, metas, roi, c, stop):
     for path,meta in zip(paths,metas):
         local = targets[(targets>=offset)&(targets<offset+meta['duration_s'])]
         if len(local):
-            reader = VideoReader(path)
+            reader = VideoReader(path,c.get('decoder_mode','auto'))
             try:
                 for target in local:
                     if stop.is_set():
@@ -294,13 +299,13 @@ def analyze_video(paths, roi, c, progress=None, stop=None, sink=None):
     roi = prepare_roi(roi)
     metas = []
     for path in paths:
-        reader = VideoReader(path)
+        reader = VideoReader(path,c.get('decoder_mode','auto'))
         metas.append(reader.metadata());reader.close()
     cal = prepare_baseline(paths,metas,roi,c,stop)
     total,offset,models,out = sum(m['duration_s'] for m in metas),0,PixelModels(),[]
     count = 0
     for i,(path,meta) in enumerate(zip(paths,metas)):
-        reader = VideoReader(path)
+        reader = VideoReader(path,c.get('decoder_mode','auto'))
         last = -math.inf
         try:
             for target in np.arange(0,meta['duration_s']-.001,1/c['fps']):
@@ -309,7 +314,7 @@ def analyze_video(paths, roi, c, progress=None, stop=None, sink=None):
                 frame,ts,source = reader.read(float(target))
                 if ts<=last+1e-7:
                     continue
-                r = dict(video=meta['name'],time_s=ts,requested_time_s=float(target),global_time_s=offset+ts,timestamp_source=source,
+                r = dict(video=meta['name'],time_s=ts,requested_time_s=float(target),global_time_s=offset+ts,timestamp_source=source,decoder_acceleration=reader.acceleration,
                          **sample(frame,roi,cal['white_baseline'],models,offset+ts,c))
                 (sink or out.append)(r);count+=1;last=ts
                 if progress:

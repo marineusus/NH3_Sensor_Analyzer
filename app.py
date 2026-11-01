@@ -24,6 +24,7 @@ class Api:
         self._preview_lock = threading.Lock()
         self._reader = None
         self._reader_id = None
+        self._decoder_mode = 'auto'
 
     def _register(self, paths):
         files=[]
@@ -31,7 +32,7 @@ class Api:
             path=Path(path).resolve()
             if not path.is_file() or path.name.startswith('._') or '복사본' in path.name:
                 continue
-            reader=VideoReader(path)
+            reader=VideoReader(path,self._decoder_mode)
             try:
                 meta=reader.metadata()
             finally:
@@ -53,17 +54,29 @@ class Api:
                 file_types=('Videos (*.mp4;*.mov;*.avi;*.mkv;*.mts;*.m4v)',))
         return self._register(paths or [])
 
+    def set_decoder_mode(self, mode):
+        if mode not in ('auto','software'):
+            raise ValueError('Invalid decoder mode')
+        if self._job and self._job['state']=='running' and mode!=self._decoder_mode:
+            raise ValueError('추출을 중지한 후 디코더를 변경하세요.')
+        with self._preview_lock:
+            if mode!=self._decoder_mode:
+                if self._reader:
+                    self._reader.close()
+                self._reader=None;self._reader_id=None;self._decoder_mode=mode
+        return mode
+
     def frame(self, fid, target):
         with self._preview_lock:
             if fid != self._reader_id:
                 if self._reader:
                     self._reader.close()
-                self._reader=VideoReader(self._files[fid]);self._reader_id=fid
+                self._reader=VideoReader(self._files[fid],self._decoder_mode);self._reader_id=fid
             image,ts,source=self._reader.read(target)
             return dict(image=png_base64(image),time=ts,source=source)
 
     def detect(self, fid, target, search=None):
-        reader=VideoReader(self._files[fid])
+        reader=VideoReader(self._files[fid],self._decoder_mode)
         try:
             frame,_,_=reader.read(target)
             return detect_sponges(frame,search)
@@ -71,7 +84,7 @@ class Api:
             reader.close()
 
     def select_sponge(self, fid, target, point, search=None):
-        reader=VideoReader(self._files[fid])
+        reader=VideoReader(self._files[fid],self._decoder_mode)
         try:
             frame,_,_=reader.read(target)
             return select_sponge(frame,point,search)
@@ -145,7 +158,7 @@ class Api:
         m=j['models'].models.get(((row['response_cycle'] or 0)-1,mode))
         if m is None or m['n']<3 or any(t in excluded_times for t in m['times']):
             raise ValueError('유효 픽셀 Baseline 부족/제외 후 재추출 필요')
-        reader=VideoReader(self._files[fid])
+        reader=VideoReader(self._files[fid],j['config'].get('decoder_mode','auto'))
         try:
             frame,_,_=reader.read(local_time)
         finally:
