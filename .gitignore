@@ -218,3 +218,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# Local experiment data and result exports
+*.mp4
+*.MP4
+*.mov
+*.MOV
+*.avi
+local-results/
