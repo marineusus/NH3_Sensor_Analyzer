@@ -107,6 +107,8 @@ function clock(value){if(!Number.isFinite(value))return '00:00';let n=Math.max(0
 function refresh(){
  const f=files[Number($('previewVideo').value)]||null,t=Number($('previewTime').value)||0;
  $('dashQuickCancel').hidden=!busy;$('dashboardStatus').classList.toggle('isRunning',busy);
+ const firstText=$('firstInjection').value,firstTime=Number(firstText);
+ if($('firstTimingNote'))$('firstTimingNote').textContent=firstText!==''&&Number.isFinite(firstTime)?'입력한 첫 주입: 영상 '+firstTime+'초 · 시작 전 구간은 Initial Baseline / Air':Number.isFinite(estimatedFirst)?'색 변화로 추정한 첫 주입: 영상 '+estimatedFirst.toFixed(1)+'초 · 실제 장비 기록과 구분':'첫 주입 시각 미입력 · 색 변화 자동 추정 대기';
  $('dashFile').textContent=f?.name||(imported?'CSV 데이터':'영상 미선택');$('dashFile').title=f?.name||'';$('dashFPS').textContent='FPS '+$('fps').value;$('dashTime').textContent=clock(t)+' / '+clock(f?.duration_s);
  $('dashVideoEmpty').hidden=!!f;$('dashGraphEmpty').hidden=!!rows.length;if(!rows.length)$('plotinfo').textContent='분석 데이터 없음 · 시간(초) / 선택 지표';
  $('dashGraphChannel').textContent=rows.length?($('nativeChannel').selectedOptions[0]?.textContent||'선택 지표'):'데이터 없음';
