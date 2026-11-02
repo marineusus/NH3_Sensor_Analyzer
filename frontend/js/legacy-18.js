@@ -87,7 +87,7 @@ function findWhiteSpongeReference(source,sensorPoints=[]){
   const originalStats=researchWhiteStats,originalROI=buildROI,originalConfig=config;
   const originalMode=setROIMode,originalDraw=drawFrame;
   const frame=$('frame'),oldDown=frame.onpointerdown,oldMove=frame.onpointermove,oldUp=frame.onpointerup;
-  const backgroundButton=[...frame.parentElement.querySelectorAll('button')].find(button=>button.textContent.trim()==='흰색 기준 드래그');
+  const backgroundButton=[...document.querySelector('.roiCard').querySelectorAll('button')].find(button=>button.textContent.trim()==='흰색 기준 드래그');
   if(!backgroundButton)throw Error('흰색 기준 드래그 버튼을 찾지 못했습니다.');
   const button=uiEl('button','흰색 스펀지 잡기');button.type='button';button.id='whiteSpongeButton';
   button.title='흰 스펀지를 자동으로 찾습니다. Shift를 누르고 클릭하면 모서리 4개를 직접 지정합니다.';

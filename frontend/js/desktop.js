@@ -106,7 +106,7 @@ async function readerPost(action,p){
 // One click chooses the sensor; no automatic selection of the other sponge.
 let desktopSelecting=false,desktopSelectionEpoch=0;
 const desktopClickHint=uiEl('p','스펀지 클릭 선택을 누른 뒤 분석할 스펀지의 중앙을 클릭하세요. 기존 수동 윤곽 지정도 사용할 수 있습니다.','hint');
-$('frame').parentElement.append(desktopClickHint);
+document.querySelector('.roiCard').append(desktopClickHint);
 const desktopSensorButton=[...document.querySelectorAll('button')].find(b=>b.getAttribute('onclick')?.includes('autoSensor('));
 if(desktopSensorButton){desktopSensorButton.textContent='스펀지 클릭 선택';desktopSensorButton.title='분석할 스펀지의 중앙을 직접 클릭합니다.';}
 autoSensorBase=function(){

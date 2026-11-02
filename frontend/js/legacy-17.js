@@ -82,7 +82,7 @@ researchFiles=function(d){return [...crFiles(d),['Color_Relative.csv',csv(d.rela
  const button=uiEl('button','전체 후보 보기');button.id='crCandidateToggle';button.hidden=true;button.onclick=()=>{if(!$('rank').children.length||!v2Candidates?.length){crCandidateSource=null;crExpanded=false;button.hidden=true;return;}crExpanded=!crExpanded;renderRank(v2Candidates);};$('rankTable').parentElement.after(button);
  $('calibrationMode').innerHTML='<option value="relative" selected>Relative · 초기 White 기준</option><option value="raw">원본(Raw) 비교</option>';researchCalibration.mode='relative';crPreference='relative';
  const state=uiEl('p',undefined,'researchNote');state.id='crCalibrationState';$('calibrationMode').parentElement.append(state);
- const check=uiEl('label');check.innerHTML='<input id="crWhiteEnabled" type="checkbox" checked style="width:auto;margin-right:6px"> White Reference 사용';$('calibrationMode').parentElement.append(check);
+ const check=uiEl('label');check.innerHTML='<input id="crWhiteEnabled" type="checkbox" style="width:auto;margin-right:6px"> White Reference 사용';$('calibrationMode').parentElement.append(check);
  $('crWhiteEnabled').onchange=()=>{if(busy){$('crWhiteEnabled').checked=extractionSettings?.white_enabled!==false;return;}crApplyPolicy();if(rows.length&&totalSelected(weights))nativeRefresh();if(rows.length)status('미사용 시 Raw로 분석합니다. 새 White 좌표의 보정값은 원본 재추출이 필요하며 저장된 데이터는 보존합니다.');};
  $('relativeStart').closest('details').querySelector('summary').textContent='원본(Raw) / Relative 비교·초기 White 설정';
  crApplyPolicy();

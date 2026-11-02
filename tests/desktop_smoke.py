@@ -32,7 +32,7 @@ with tempfile.TemporaryDirectory(prefix='nh3-smoke-') as temp:
                 time.sleep(.1)
             setup='''
 files=FILES;fileMeta=files.map(f=>({...f}));listFiles();
-sensor=[[.33,.24],[.65,.24],[.65,.65],[.33,.65]];white=[.06,.10,.08,.20];
+sensor=[[.33,.24],[.65,.24],[.65,.65],[.33,.65]];white=[.06,.10,.08,.20];$('crWhiteEnabled').checked=true;
 $('fps').value=2;$('firstInjection').value=3;$('baseline_window').value=2;
 cyclePlan=[{concentration_ppm:10,gas_on_s:3,gas_off_s:5,recovery_end_s:8}];
 $('relativeStart').value=0;$('relativeEnd').value=2;estimatedFirst=null;timingUnresolved=false;

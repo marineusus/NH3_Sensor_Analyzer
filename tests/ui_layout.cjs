@@ -6,7 +6,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  const browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});
  const page=await browser.newPage({viewport:{width:1600,height:900},deviceScaleFactor:1});const errors=[];let frames=0;
  page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(r.method()==='POST'){try{if(r.postDataJSON().name==='frame')frames++;}catch{}}});
- await page.goto(url);await page.locator('#dashboard').waitFor();await page.evaluate(()=>document.fonts.ready);
+ await page.goto(url);await page.locator('#dashboard').waitFor();assert(await page.evaluate(()=>white.every(v=>v===0)&&!crWhiteEnabled()));assert.equal(await page.locator('.setupGrid,.setupLeft,.setupRight,.organizedMain').count(),0);await page.evaluate(()=>document.fonts.ready);
  await page.locator('.stepButton[data-step="1"]').click();await page.locator('#desktopOpen').click();
  await page.waitForFunction(()=>document.getElementById('status').textContent.includes('미리보기'));
  await page.locator('.stepButton[data-step="3"]').click();await page.locator('#autoROI').click();
@@ -47,7 +47,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  const before=await page.evaluate(()=>({sensor:JSON.stringify(sensor),file:files[0].id,rows:rows.length,time:cxFrame.time_s})),frameCount=frames;
  for(let i=1;i<=7;i++){await page.locator('.stepButton[data-step="'+i+'"]').click();assert(await page.locator('#dashboardStep'+i).isVisible());}
  const after=await page.evaluate(()=>({sensor:JSON.stringify(sensor),file:files[0].id,rows:rows.length,time:cxFrame.time_s}));assert.deepStrictEqual(before,after);assert.equal(frames,frameCount,'Menu navigation must not decode frames');
- await page.locator('.stepButton[data-step="4"]').click();assert.equal(await page.locator('#dashboardColorGauges input[type=range]').count(),6);assert(!(await page.locator('#sliders').isVisible()));assert(!(await page.locator('#lightThemeButton').isVisible()));await page.waitForFunction(()=>document.querySelector('#dashboardColorGauges output').textContent!=='—');
+ await page.locator('.stepButton[data-step="4"]').click();assert.equal(await page.locator('#dashboardColorGauges input[type=range]').count(),6);assert(!(await page.locator('#sliders').isVisible()));assert.equal(await page.locator('#lightThemeButton').count(),0);await page.waitForFunction(()=>document.querySelector('#dashboardColorGauges output').textContent!=='—');
  for(const [i,r]of (await page.locator('#dashboardColorGauges input[type=range]').all()).entries()){assert.equal(await r.getAttribute('min'),'0');assert.equal(await r.getAttribute('max'),String([255,255,255,360,100,100][i]));assert(await r.isDisabled());}
  const result=[];
  for(const [width,height]of [[1920,1080],[1600,900],[1366,768]]){
@@ -63,7 +63,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  // A real decode error must preserve rows and mark the existing export as partial.
  await page.locator('.stepButton[data-step="2"]').click();
  await page.locator('#fps').fill('0.01');await page.locator('#firstInjection').fill('300');await page.locator('#firstInjection').press('Tab');
- await page.locator('#start').click();await page.waitForTimeout(1500);const startState=await page.evaluate(()=>({rows:rows.length,busy,status:document.getElementById('status').textContent}));if(!startState.busy&&!startState.rows)throw Error(JSON.stringify({startState,errors}));
+ await page.locator('.stepButton[data-step="3"]').click();assert(await page.locator('#dashboardStep3 #start').count());await page.locator('#start').click();await page.waitForTimeout(1500);const startState=await page.evaluate(()=>({rows:rows.length,busy,status:document.getElementById('status').textContent}));if(!startState.busy&&!startState.rows)throw Error(JSON.stringify({startState,errors}));
  try{await page.waitForFunction(()=>rows.length>0&&!busy&&document.getElementById('status').classList.contains('error'),null,{timeout:45000});}catch(e){console.log(await page.evaluate(()=>({rows:rows.length,busy,cancel,status:document.getElementById('status').textContent,fps:document.getElementById('fps').value})));await page.screenshot({path:path.join(output,'UI_test_debug.png')});throw e;}
  assert(await page.evaluate(()=>cancel===true&&exportData().settings.partial===true));
  await page.locator('.stepButton[data-step="4"]').click();

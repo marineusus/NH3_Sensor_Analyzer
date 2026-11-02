@@ -7,7 +7,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   let release;const hold=new Promise(resolve=>release=resolve);
   await page.route('**/js/dashboard.js',async route=>{await hold;await route.continue();});
   const navigation=page.goto(process.argv[2]);
-  await page.waitForFunction(()=>Boolean(document.querySelector('main')));
+  await page.waitForFunction(()=>Boolean(document.querySelector('#dashboard')));
   const before=await page.evaluate(()=>({pending:document.documentElement.classList.contains('nh3-booting'),visibility:getComputedStyle(document.body).visibility}));
   assert(before.pending);assert.equal(before.visibility,'hidden');
   assert(!(await page.locator('body>header').first().isVisible()),'Legacy header must never be painted');

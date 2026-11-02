@@ -1,9 +1,8 @@
-/* UI composition only. Existing nodes, handlers, state, equations and API stay alive. */
+/* Final-layout controller. The screen structure is static in index.html. */
 (function(){
-if($('sensorUIFont'))$('sensorUIFont').media='not all';
-const oldMain=document.querySelector('main'),oldHeader=document.querySelector('body>header');
-const setupLeft=document.querySelector('.setupLeft'),roiCard=$('frame').closest('section');
-const videoCard=setupLeft.children[0],experimentCard=setupLeft.children[1];
+const shell=$('dashboard'),header=$('dashboardHeader');
+const panes=Array.from({length:7},(_,i)=>$('dashboardStep'+(i+1)));
+const videoCard=panes[0].querySelector('section'),experimentCard=panes[1].querySelector('section'),roiCard=document.querySelector('.roiCard');
 const metricCard=document.querySelector('.metricChoice'),candidateCard=document.querySelector('.candidateChoice'),exportCard=document.querySelector('.exportCard');
 const titles=['영상 선택','실험 조건 설정','ROI 설정','분석 지표 선택','지표 비교','분석 결과','결과 저장'];
 const iconPaths=[
@@ -17,30 +16,9 @@ const iconPaths=[
 ];
 function svg(path,cls=''){return '<svg class="'+cls+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+path+'</svg>';}
 const flask=svg('<path d="M9 3h6M10 3v7L4 20q-1 2 2 2h12q3 0 2-2l-6-10V3M7 16h10"/><circle cx="11" cy="13" r=".6"/><circle cx="14" cy="18" r=".6"/>','brandFlask');
-const header=uiEl('header');header.id='dashboardHeader';
-header.innerHTML='<div class="dashboardBrand">'+flask+'<span>NH₃ <b>Sensor Analysis</b></span></div><div class="dashboardTitle"><h1>가스 센서 영상 분석 프로그램</h1><p>김지우, 박민준, 유제진, 정수현, 한다예</p></div><div class="dashboardMeta"><span id="dashFile">영상 미선택</span><span id="dashFPS">FPS 0.5</span><span id="dashTime">00:00 / 00:00</span></div><div class="dashboardHeaderActions"><button id="dashSettings" title="실험 조건 설정" aria-label="실험 조건 설정">'+svg(iconPaths[3])+'</button><button id="dashHelp" title="사용 안내" aria-label="사용 안내">ⓘ</button></div>';
-oldHeader.before(header);
-const themeButtons=oldHeader.querySelector('.themeButtons');if(themeButtons)themeButtons.hidden=true;oldHeader.hidden=true;
-const shell=uiEl('div');shell.id='dashboard';
-shell.innerHTML='<nav class="dashboardSidebar" aria-label="분석 단계"><h2>'+svg('<path d="M3 10l9-7 9 7M5 9v12h14V9M9 21v-8h6v8"/>')+'프로젝트 <span>⌄</span></h2><div id="dashboardSteps"></div><div class="sidebarFoot"><span class="engineDot"></span> OpenCV 분석 엔진<br><small>원본 영상은 PC에서 직접 읽습니다.</small></div></nav><div class="dashboardCenter"><section class="dashboardVideo panel"><div class="panelHeading"><h2>'+svg('<rect x="3" y="6" width="18" height="15" rx="3"/><path d="M8 6l2-3h4l2 3"/><circle cx="12" cy="13" r="4"/>')+'센서 영상 미리보기</h2><div class="videoTools"><span class="sensorChip">1센서 분석</span><button id="dashFullscreen" title="영상 확대" aria-label="영상 확대">'+svg('<path d="M3 8V3h5M16 3h5v5M21 16v5h-5M8 21H3v-5"/>')+'</button></div></div><div id="dashboardViewport"><div id="dashVideoEmpty"><span>'+flask+'</span><strong>분석할 영상을 선택하세요</strong><p>스펀지 하나를 클릭하여 ROI를 설정합니다.</p></div></div><div id="dashboardScrub"></div></section><section class="dashboardGraph panel"><div class="panelHeading"><h2>'+svg(iconPaths[5])+'분석 결과 <small>(미리보기)</small></h2><span id="dashGraphChannel">데이터 없음</span></div><div id="dashboardGraphBody"><div id="dashGraphEmpty">색상을 추출하거나 기존 CSV를 불러오면<br>실제 분석 곡선이 표시됩니다.</div></div><div id="dashboardPlotInfo"></div></section><div id="dashboardStatus"></div></div><aside class="dashboardRight"><section class="dashboardWork panel"><div class="panelHeading"><h2 id="dashboardWorkTitle"></h2><button id="dashStepHelp" aria-label="현재 단계 안내" title="현재 단계 안내">?</button></div><div id="dashboardWorkBody" class="analysisGrid"></div></section><section class="dashboardSummary panel"><h2>'+svg('<path d="M5 3h10l4 4v14H5zM14 3v5h5M8 12h8M8 16h8"/>')+'현재 설정 요약</h2><div class="summaryCells"><div><span>선택 지표</span><strong id="dashSummaryMetric">미분석</strong></div><div><span>가중치 (R, G, B, H, S, V)</span><strong id="dashSummaryWeights">—</strong></div><div><span>적용 대상</span><strong id="dashSummaryTarget">ROI 미설정</strong></div><div><span>White Reference</span><strong id="dashSummaryWhite">미설정</strong></div></div></section></aside>';
-oldMain.before(shell);
-const panes=titles.map((title,i)=>{const pane=uiEl('div');pane.className='dashboardStepPane';pane.id='dashboardStep'+(i+1);pane.hidden=true;$('dashboardWorkBody').append(pane);const b=uiEl('button');b.className='stepButton';b.dataset.step=i+1;b.innerHTML='<span class="stepNumber">'+(i+1)+'</span>'+svg(iconPaths[i])+'<span>'+title+'</span><span class="stepCheck" aria-hidden="true"></span>';b.onclick=()=>setStep(i+1);$('dashboardSteps').append(b);return pane;});
-panes[0].append(videoCard);panes[1].append(experimentCard);panes[2].append(roiCard);panes[3].append(metricCard);panes[4].append(candidateCard);
-for(const id of ['keyMetrics','selectedResults','qualityCard','calibrationCard'])if($(id))panes[5].append($(id));panes[6].append(exportCard);
-const emptyOpen=uiEl('button','영상 불러오기');emptyOpen.id='dashEmptyOpen';emptyOpen.className='primary';emptyOpen.onclick=()=>{setStep(1);desktopChoose();};$('dashVideoEmpty').append(emptyOpen);
-const quickCancel=uiEl('button','중지');quickCancel.id='dashQuickCancel';quickCancel.hidden=true;quickCancel.onclick=()=>cancelAnalysis();$('dashboardStatus').append(quickCancel);
-// These are the ORIGINAL editor and plot, moved once. They are never cloned.
-const frame=$('frame');$('dashboardViewport').append(frame);frame.style.maxHeight='none';frame.style.aspectRatio='16/9';
-const scrub=$('previewTime').closest('.videoScrub')||$('previewTime').parentElement;$('dashboardScrub').append(scrub);
-$('dashboardGraphBody').append($('plot'));$('dashboardPlotInfo').append($('plotinfo'));
-$('dashboardStatus').append($('status'));
-// Preview selector belongs to file selection; its native onchange handler is retained.
-const previewSelect=$('previewVideo'),previewLabel=previewSelect.previousElementSibling;
-if(previewLabel?.tagName==='LABEL')videoCard.append(previewLabel);videoCard.append(previewSelect);
-$('progressCard').classList.add('dashboardProgress');panes[1].append($('progressCard'));
-// Preserve any remaining legacy controls (normally none) in an accessible advanced fold.
-const remaining=[...oldMain.querySelectorAll('input,button,select,textarea')];
-if(remaining.length){const advanced=uiEl('details');advanced.append(uiEl('summary','추가 설정'),oldMain);panes[5].append(advanced);}else oldMain.hidden=true;
+document.querySelectorAll('.stepButton').forEach(b=>b.onclick=()=>setStep(Number(b.dataset.step)));
+const frame=$('frame');frame.style.maxHeight='none';frame.style.aspectRatio='16/9';
+$('dashEmptyOpen').onclick=()=>{setStep(1);desktopChoose();};$('dashQuickCancel').onclick=()=>cancelAnalysis();
 // Separate the analytical sensor from the independent White Reference.
 const roiSensor=uiEl('div');roiSensor.className='dashboardROIGroup';roiSensor.append(uiEl('h3','분석 센서 영역'));
 const sensorButtons=[...roiCard.querySelectorAll('button')].filter(b=>b.id==='autoROI'||b.getAttribute('onclick')?.includes('editSensor(')||b.getAttribute('onclick')?.includes('sensor=[]'));
@@ -56,6 +34,12 @@ const calibrationSelect=$('calibrationMode'),calibrationRow=calibrationSelect.cl
 const calibrationFold=$('relativeStart').closest('details');if(calibrationFold)roiCalibration.append(calibrationFold);
 const legacyOption=uiEl('option','Legacy · White RGB를 200으로');legacyOption.value='legacy';calibrationSelect.append(legacyOption);
 roiCard.prepend(roiSensor,roiWhite,roiCalibration);
+function enableSelectedWhite(){if(!crWhiteValid())return;const box=$('crWhiteEnabled');if(!box.checked){box.checked=true;box.dispatchEvent(new Event('change',{bubbles:true}));}drawFrame();}
+const originalWhitePick=$('whiteSpongeButton').onclick;
+$('whiteSpongeButton').onclick=function(event){const before=whiteSpongeReference.selected;const result=originalWhitePick.call(this,event);if(whiteSpongeReference.selected&&whiteSpongeReference.selected!==before)enableSelectedWhite();return result;};
+let whiteGesture=false;frame.addEventListener('pointerdown',()=>{whiteGesture=mode==='white'||whiteSpongeReference.picking;},{capture:true});
+frame.addEventListener('pointerup',()=>{if(whiteGesture)requestAnimationFrame(()=>{if(crWhiteValid())enableSelectedWhite();});whiteGesture=false;});
+const oldWhiteToggle=$('crWhiteEnabled').onchange;$('crWhiteEnabled').onchange=function(e){if(this.checked&&!crWhiteValid()){this.checked=false;status('먼저 흰색 기준 영역을 직접 지정하세요.',true);return;}return oldWhiteToggle.call(this,e);};
 // Expose the ALREADY computed cal_* path; no calibration equation is rewritten.
 let dashboardLegacyPreferred=false;
 const dashboardPolicyBase=crPolicy;crPolicy=function(){
@@ -138,7 +122,7 @@ function showMean(error){
  $('dashSummaryWeights').textContent='RGB '+v.slice(0,3).map(x=>x.toFixed(1)).join(' / ')+' · H '+v[3].toFixed(1)+'°';
 }
 showMean();
-const runActions=uiEl('div');runActions.className='dashboardRunActions';const stopButton=[...experimentCard.querySelectorAll('button')].find(b=>b.getAttribute('onclick')?.includes('cancelAnalysis('));runActions.append($('start'));if(stopButton)runActions.append(stopButton);experimentCard.append(runActions);
+const runActions=uiEl('div');runActions.className='dashboardRunActions';const stopButton=[...experimentCard.querySelectorAll('button')].find(b=>b.getAttribute('onclick')?.includes('cancelAnalysis('));runActions.append($('start'));if(stopButton)runActions.append(stopButton);roiCard.append(runActions);roiCard.append($('progressCard'));
 let activeStep=4;const touched=new Set();
 function setStep(n){activeStep=n;panes.forEach((p,i)=>p.hidden=i!==n-1);document.querySelectorAll('.stepButton').forEach(b=>{const on=Number(b.dataset.step)===n;b.classList.toggle('selected',on);b.setAttribute('aria-current',on?'step':'false');});$('dashboardWorkTitle').innerHTML=svg(iconPaths[n-1])+'<span>'+n+'. '+titles[n-1]+'</span>';$('dashboardWorkBody').scrollTop=0;refresh();}
 globalThis.dashboardUI={setStep,refresh,get activeStep(){return activeStep;}};
@@ -154,9 +138,9 @@ function refresh(){
  $('dashSummaryMetric').textContent=rows.length?($('nativeChannel').selectedOptions[0]?.textContent||'미선택'):'미분석 · '+($('nativeChannel').selectedOptions[0]?.textContent||'미선택');
  if(!meanCache)$('dashSummaryWeights').textContent='ROI 측정 전';else showMean();requestMean();
  $('dashSummaryTarget').textContent=sensor.length>=3?'클릭한 스펀지 · 1센서':'ROI 미설정';
- const enabled=$('crWhiteEnabled')?.checked!==false,relative=crPolicy().effective==='relative';
- const effective=crPolicy().effective,whiteKind=globalThis.whiteSpongeReference?.selected?'흰 스펀지 · 고정 내부 ROI':'배경 사각형 · 위치 확인';
- $('dashSummaryWhite').textContent=!enabled?'미적용 · Raw':rows.length?(effective==='raw'?'Raw · 보정 미적용':researchModeLabel(effective)+' 적용'):whiteKind+' · 추출 전';
+ const configured=crWhiteValid(),enabled=crWhiteEnabled(),relative=crPolicy().effective==='relative';
+ const effective=crPolicy().effective,whiteKind=!configured?'미설정':globalThis.whiteSpongeReference?.selected?'흰 스펀지 · 고정 내부 ROI':'배경 사각형 · 지정됨';
+ $('dashSummaryWhite').textContent=!configured?'미설정 · Raw':!enabled?'미적용 · Raw':rows.length?(effective==='raw'?'Raw · 보정 미적용':researchModeLabel(effective)+' 적용'):whiteKind+' · 추출 전';
  if($('dashWhiteState'))$('dashWhiteState').textContent=(enabled?'사용: ':'미사용: ')+whiteKind;
  if($('dashSummaryDetail'))$('dashSummaryDetail').textContent='센서 ROI: '+(sensor.length>=3?'지정됨':'미설정')+' · 기준 종류: '+(enabled?whiteKind:'미사용')+' · 보정: '+researchModeLabel(effective)+' · '+(busy?'분석 중':rows.length?rows.length+'개 표본':'미분석');
  const sum=weights.reduce((a,v)=>a+Math.abs(v),0),terms=weights.map((v,i)=>Math.abs(v)<1e-8?null:(v/sum).toFixed(2)+'·'+(i<3?names[i]+'/255':i===3?'cos(H−240°)':names[i])).filter(Boolean);
@@ -197,7 +181,7 @@ const oldShow=showPreview;showPreview=async function(...args){try{return await o
 new MutationObserver(refresh).observe($('status'),{childList:true,characterData:true,subtree:true});
 // Delegation changes only presentation. It neither redecodes nor reevaluates.
 shell.addEventListener('input',()=>{touched.add(activeStep);refresh();});shell.addEventListener('change',()=>{touched.add(activeStep);refresh();});
-setStep(4);fitVideo();
+setStep(1);fitVideo();
 // The legacy DOM remains measurable while hidden. Reveal only the final layout
 // after both UI font weights are ready; never paint the pre-dashboard screen.
 Promise.all([document.fonts.load('400 14px DashboardRound','가스 센서 NH₃'),document.fonts.load('700 14px DashboardRound','가스 센서 NH₃')])
