@@ -1,5 +1,5 @@
 /* Desktop transport only. Analytical functions and geometry remain in legacy files. */
-let desktopCurrentFile=null,desktopJob=null,desktopPreviewEpoch=0;
+let desktopCurrentFile=null,desktopJob=null,desktopPreviewEpoch=0;let desktopPreviewState={valid:false,error:null,file:null,time:0};let desktopPreviewFallback='';
 const desktopReady=new Promise(resolve=>{
  if(window.pywebview?.api)resolve();else window.addEventListener('pywebviewready',resolve,{once:true});
 });
@@ -11,7 +11,14 @@ loadVideo=async function(file){
 };
 seekFrame=async function(target){
  if(!desktopCurrentFile)throw Error('영상을 선택하세요.');
- const f=desktopCurrentFile,result=await desktopCall('frame',f.id,Number(target));
+ const f=desktopCurrentFile;let result;
+ try{result=await desktopCall('frame',f.id,Number(target));}
+ catch(firstError){
+  if($('desktopDecoder')?.value!=='auto'||busy)throw firstError;
+  await desktopCall('set_decoder_mode','software');
+  try{result=await desktopCall('frame',f.id,Number(target));$('desktopDecoder').value='software';desktopPreviewFallback='GPU 읽기 실패로 CPU 모드로 전환했습니다.';}
+  catch{await desktopCall('set_decoder_mode','auto');throw Error(f.name+' · '+Number(target).toFixed(2)+'초를 GPU·CPU 모두 읽지 못했습니다. 원본/코덱 또는 해당 구간을 확인하세요.');}
+ }
  const decoded=new Image();decoded.src='data:image/png;base64,'+result.image;await decoded.decode();
  sx.clearRect(0,0,960,540);sx.drawImage(decoded,0,0);cxFrame={file:f.name,time_s:result.time};
  return {time:result.time,source:result.source};
@@ -19,11 +26,26 @@ seekFrame=async function(target){
 showPreviewBase=async function(){
  if(busy||desktopSelecting)throw Error('추출 또는 윤곽 선택이 끝난 뒤 미리보기를 바꾸세요.');
  const f=files[Number($('previewVideo').value)];if(!f)throw Error('먼저 영상을 선택하세요.');
+ const previous={...desktopPreviewState};desktopPreviewFallback='';
+ if(previous.file!==f.id)desktopPreviewState={valid:false,error:null,file:f.id,time:0};
+ status('영상 미리보기 읽는 중 · '+f.name);
  const duration=await loadVideo(f);$('previewTime').max=Math.max(0,duration-.1);
  $('videoDurationLabel').textContent='전체 길이 '+formatSeconds(duration);
- const t=Math.max(0,Math.min(Number($('previewTime').value)||0,duration-.001));
- const meta=await seekFrame(t);$('previewTime').value=meta.time;image=surface;drawFrame();
- status(f.name+' · '+duration.toFixed(1)+'초 · OpenCV 미리보기');
+ let target=Math.max(0,Math.min(Number($('previewTime').value)||0,duration-.001)),meta;
+ try{
+  meta=await seekFrame(target);
+  if(!previewHasVisiblePixels()&&!previewVerifiedFiles.has(f)){
+   for(const next of [.1,1,3]){const t=Math.min(duration-.001,next);if(t<=target)continue;meta=await seekFrame(t);if(previewHasVisiblePixels())break;}
+  }
+  if(previewHasVisiblePixels())previewVerifiedFiles.add(f);
+  desktopPreviewState={valid:true,error:null,file:f.id,time:meta.time};
+  $('previewTime').value=meta.time;image=surface;drawFrame();
+  status(f.name+' · '+duration.toFixed(1)+'초 · OpenCV 미리보기'+(desktopPreviewFallback?' · '+desktopPreviewFallback:'')+(!previewHasVisiblePixels()?' · 현재 장면의 실제 픽셀이 어둡습니다.':''));
+ }catch(error){
+  if(previous.valid&&previous.file===f.id){desktopPreviewState=previous;cxFrame={file:f.name,time_s:previous.time};$('previewTime').value=previous.time;$('previewLabel').textContent=formatSeconds(previous.time);}
+  else{desktopPreviewState={valid:false,error:error.message,file:f.id,time:0};sx.clearRect(0,0,960,540);image=surface;drawFrame();}
+  throw Error(error.message+(previous.valid&&previous.file===f.id?' · 마지막 정상 미리보기 '+previous.time.toFixed(2)+'초를 유지합니다.':''));
+ }
 };
 
 async function desktopChoose(){
@@ -68,8 +90,8 @@ async function desktopExtract(){
   if(last.state==='done'){
    drawProgress({percent:100,videoPercent:100,index:files.length,total:files.length,name:files.at(-1).name,frames:rows.length});
    status('완료 · '+rows.length.toLocaleString()+'개 표본 · '+last.elapsed_s.toFixed(1)+'초 · 원본 변경 없음');
-  }else status((last.error||'추출 중지')+' · '+rows.length+'개 표본 보존 · 부분 결과를 내보낼 수 있습니다.',last.state==='error');
- }catch(e){status(e.message,true);if(started)await desktopCall('cancel_analysis');}
+  }else{cancel=true;status((last.error||'추출 중지')+' · '+rows.length+'개 표본 보존 · 부분 결과를 내보낼 수 있습니다.',last.state==='error');}
+ }catch(e){status(e.message,true);if(started){cancel=true;await desktopCall('cancel_analysis');}}
  finally{busy=false;$('start').disabled=false;$('desktopOpen').disabled=false;desktopJob=null;}
 }
 cancelAnalysis=function(){cancel=true;desktopCall('cancel_analysis').catch(e=>status(e.message,true));status('중지 요청 · 현재 프레임 후 표본을 보존합니다.');};

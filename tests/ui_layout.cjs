@@ -47,18 +47,27 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  const before=await page.evaluate(()=>({sensor:JSON.stringify(sensor),file:files[0].id,rows:rows.length,time:cxFrame.time_s})),frameCount=frames;
  for(let i=1;i<=7;i++){await page.locator('.stepButton[data-step="'+i+'"]').click();assert(await page.locator('#dashboardStep'+i).isVisible());}
  const after=await page.evaluate(()=>({sensor:JSON.stringify(sensor),file:files[0].id,rows:rows.length,time:cxFrame.time_s}));assert.deepStrictEqual(before,after);assert.equal(frames,frameCount,'Menu navigation must not decode frames');
- await page.locator('.stepButton[data-step="4"]').click();assert.equal(await page.locator('#sliders input[type=range]').count(),6);
- for(const r of await page.locator('#sliders input[type=range]').all()){assert.equal(await r.getAttribute('min'),'-1');assert.equal(await r.getAttribute('max'),'1');}
+ await page.locator('.stepButton[data-step="4"]').click();assert.equal(await page.locator('#dashboardColorGauges input[type=range]').count(),6);assert(!(await page.locator('#sliders').isVisible()));assert(!(await page.locator('#lightThemeButton').isVisible()));await page.waitForFunction(()=>document.querySelector('#dashboardColorGauges output').textContent!=='—');
+ for(const [i,r]of (await page.locator('#dashboardColorGauges input[type=range]').all()).entries()){assert.equal(await r.getAttribute('min'),'0');assert.equal(await r.getAttribute('max'),String([255,255,255,360,100,100][i]));assert(await r.isDisabled());}
  const result=[];
  for(const [width,height]of [[1920,1080],[1600,900],[1366,768]]){
   await page.setViewportSize({width,height});await page.waitForTimeout(250);
   const metrics=await page.evaluate(()=>{
    const rect=id=>{const r=document.getElementById(id).getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};};
-   return {viewport:[innerWidth,innerHeight],canvas:rect('frame'),graph:rect('dashboardGraphBody'),sidebar:document.querySelector('.dashboardSidebar').getBoundingClientRect().width,right:document.querySelector('.dashboardRight').getBoundingClientRect().width,weights:rect('sliders'),overflow:document.documentElement.scrollWidth>innerWidth,font:getComputedStyle(document.querySelector('.stepButton')).fontFamily,loaded:document.fonts.check('14px DashboardRound')};
+   return {viewport:[innerWidth,innerHeight],canvas:rect('frame'),graph:rect('dashboardGraphBody'),sidebar:document.querySelector('.dashboardSidebar').getBoundingClientRect().width,right:document.querySelector('.dashboardRight').getBoundingClientRect().width,weights:rect('dashboardColorGauges'),overflow:document.documentElement.scrollWidth>innerWidth,font:getComputedStyle(document.querySelector('.stepButton')).fontFamily,loaded:document.fonts.check('14px DashboardRound')};
   });
   assert(Math.abs(metrics.canvas.width/metrics.canvas.height-16/9)<.001,'ROI canvas must remain 16:9');assert(metrics.graph.bottom<=height,'Graph off screen');assert(!metrics.overflow,'Horizontal page overflow');assert(metrics.weights.right<=width,'Weight controls off screen');assert(metrics.loaded);
   await page.screenshot({path:path.join(output,`NH3_UI_${width}x${height}.png`),fullPage:false});result.push(metrics);
  }
+
+ // A real decode error must preserve rows and mark the existing export as partial.
+ await page.locator('.stepButton[data-step="2"]').click();
+ await page.locator('#fps').fill('0.01');await page.locator('#firstInjection').fill('300');await page.locator('#firstInjection').press('Tab');
+ await page.locator('#start').click();await page.waitForTimeout(1500);const startState=await page.evaluate(()=>({rows:rows.length,busy,status:document.getElementById('status').textContent}));if(!startState.busy&&!startState.rows)throw Error(JSON.stringify({startState,errors}));
+ try{await page.waitForFunction(()=>rows.length>0&&!busy&&document.getElementById('status').classList.contains('error'),null,{timeout:45000});}catch(e){console.log(await page.evaluate(()=>({rows:rows.length,busy,cancel,status:document.getElementById('status').textContent,fps:document.getElementById('fps').value})));await page.screenshot({path:path.join(output,'UI_test_debug.png')});throw e;}
+ assert(await page.evaluate(()=>cancel===true&&exportData().settings.partial===true));
+ await page.locator('.stepButton[data-step="4"]').click();
+ await page.screenshot({path:path.join(output,'NH3_UI_부분결과.png')});
  assert.deepStrictEqual(errors,[]);fs.writeFileSync(path.join(output,'layout-validation.json'),JSON.stringify({result,errors,frame_requests:frames,white_automatic:whiteAutomatic},null,2));
  console.log(JSON.stringify({result,errors},null,2));await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});
