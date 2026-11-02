@@ -79,5 +79,5 @@ function nativeInstallControls(){let card=document.querySelector('.metricChoice'
  syncNativeControls();renderCombination(weights);
 }
 const nativeBasePlot=plot;
-plot=function(points){nativeBasePlot(points);if(!latest?.analysis_metric||!points.some(p=>Number.isFinite(p[1])))return;let ctx=$('plot').getContext('2d'),m=latest.analysis_metric;ctx.save();ctx.font='12px sans-serif';ctx.fillStyle=document.documentElement.dataset.theme==='dark'?'#b5adc8':'#526b7c';ctx.fillText(m.channel==='combination'?'색상 조합 · 지표값':(m.channel==='H'?'연속 색조 H':nativeLabels[names.indexOf(m.channel)])+(m.basis==='difference'?' 변화':'')+' ('+m.unit+')',65,15);ctx.restore()};
+plot=function(points){nativeBasePlot(points);if(!latest?.analysis_metric||!points.some(p=>Number.isFinite(p[1])))return;let ctx=$('plot').getContext('2d'),m=latest.analysis_metric;ctx.save();ctx.font='12px DashboardRound, sans-serif';ctx.fillStyle=document.documentElement.dataset.theme==='dark'?'#b5adc8':'#526b7c';ctx.fillText(m.channel==='combination'?'색상 조합 · 지표값':(m.channel==='H'?'연속 색조 H':nativeLabels[names.indexOf(m.channel)])+(m.basis==='difference'?' 변화':'')+' ('+m.unit+')',65,15);ctx.restore()};
 nativeInstallControls();
