@@ -27,6 +27,8 @@ oldMain.before(shell);
 const panes=titles.map((title,i)=>{const pane=uiEl('div');pane.className='dashboardStepPane';pane.id='dashboardStep'+(i+1);pane.hidden=true;$('dashboardWorkBody').append(pane);const b=uiEl('button');b.className='stepButton';b.dataset.step=i+1;b.innerHTML='<span class="stepNumber">'+(i+1)+'</span>'+svg(iconPaths[i])+'<span>'+title+'</span><span class="stepCheck" aria-hidden="true"></span>';b.onclick=()=>setStep(i+1);$('dashboardSteps').append(b);return pane;});
 panes[0].append(videoCard);panes[1].append(experimentCard);panes[2].append(roiCard);panes[3].append(metricCard);panes[4].append(candidateCard);
 for(const id of ['keyMetrics','selectedResults','qualityCard','calibrationCard'])if($(id))panes[5].append($(id));panes[6].append(exportCard);
+const emptyOpen=uiEl('button','영상 불러오기');emptyOpen.id='dashEmptyOpen';emptyOpen.className='primary';emptyOpen.onclick=()=>{setStep(1);desktopChoose();};$('dashVideoEmpty').append(emptyOpen);
+const quickCancel=uiEl('button','중지');quickCancel.id='dashQuickCancel';quickCancel.hidden=true;quickCancel.onclick=()=>cancelAnalysis();$('dashboardStatus').append(quickCancel);
 // These are the ORIGINAL editor and plot, moved once. They are never cloned.
 const frame=$('frame');$('dashboardViewport').append(frame);frame.style.maxHeight='none';frame.style.aspectRatio='16/9';
 const scrub=$('previewTime').closest('.videoScrub')||$('previewTime').parentElement;$('dashboardScrub').append(scrub);
@@ -96,14 +98,15 @@ $('dashResetWeights').onclick=()=>{weights=[-1,0,1,0,0,0];sliders();if(rows.leng
 $('dashApplyWeights').onclick=async()=>{try{nativeSelectChannel('combination');if(!rows.length){status('가중치를 적용했습니다. 먼저 색상을 추출하거나 CSV를 불러오세요.');refresh();return;}await evaluate();refresh();}catch(e){status(e.message,true);}};
 function setMetricTab(preset){weightsArea.hidden=preset;presetArea.hidden=!preset;$('dashWeightsTab').classList.toggle('active',!preset);$('dashPresetTab').classList.toggle('active',preset);}
 $('dashWeightsTab').onclick=()=>setMetricTab(false);$('dashPresetTab').onclick=()=>setMetricTab(true);
-function styleSliders(){const ranges=['0–255','0–255','0–255','0–360°','0–100%','0–100%'];[...$('sliders').children].forEach((row,i)=>{const label=row.querySelector('.channelLabel');if(label){label.querySelector('b').textContent=ranges[i];label.title=CHANNELS[i].label;}row.querySelector('input[type=range]')?.setAttribute('aria-label',names[i]+' 분석 가중치 −1~1');});}
-const originalSliders=sliders;sliders=function(...args){const value=originalSliders(...args);styleSliders();refresh();return value;};styleSliders();
+function styleSliders(){const ranges=['0–255','0–255','0–255','0–360°','0–100%','0–100%'];[...$('sliders').children].forEach((row,i)=>{const label=row.querySelector('.channelLabel');if(label){if(label.querySelector('b').textContent!==ranges[i])label.querySelector('b').textContent=ranges[i];label.title=CHANNELS[i].label;}row.querySelector('input[type=range]')?.setAttribute('aria-label',names[i]+' 분석 가중치 −1~1');});}
+const originalSliders=sliders;sliders=function(...args){const value=originalSliders(...args);styleSliders();refresh();return value;};styleSliders();new MutationObserver(styleSliders).observe($('sliders'),{childList:true});
 let activeStep=4;const touched=new Set();
 function setStep(n){activeStep=n;panes.forEach((p,i)=>p.hidden=i!==n-1);document.querySelectorAll('.stepButton').forEach(b=>{const on=Number(b.dataset.step)===n;b.classList.toggle('selected',on);b.setAttribute('aria-current',on?'step':'false');});$('dashboardWorkTitle').innerHTML=svg(iconPaths[n-1])+'<span>'+n+'. '+titles[n-1]+'</span>';$('dashboardWorkBody').scrollTop=0;refresh();}
 globalThis.dashboardUI={setStep,refresh,get activeStep(){return activeStep;}};
 function clock(value){if(!Number.isFinite(value))return '00:00';let n=Math.max(0,Math.floor(value));return (n>=3600?String(Math.floor(n/3600)).padStart(2,'0')+':':'')+String(Math.floor(n/60)%60).padStart(2,'0')+':'+String(n%60).padStart(2,'0');}
 function refresh(){
  const f=files[Number($('previewVideo').value)]||null,t=Number($('previewTime').value)||0;
+ $('dashQuickCancel').hidden=!busy;$('dashboardStatus').classList.toggle('isRunning',busy);
  $('dashFile').textContent=f?.name||(imported?'CSV 데이터':'영상 미선택');$('dashFile').title=f?.name||'';$('dashFPS').textContent='FPS '+$('fps').value;$('dashTime').textContent=clock(t)+' / '+clock(f?.duration_s);
  $('dashVideoEmpty').hidden=!!f;$('dashGraphEmpty').hidden=!!rows.length;if(!rows.length)$('plotinfo').textContent='분석 데이터 없음 · 시간(초) / 선택 지표';
  $('dashGraphChannel').textContent=rows.length?($('nativeChannel').selectedOptions[0]?.textContent||'선택 지표'):'데이터 없음';
@@ -136,6 +139,14 @@ $('researchSettingsFile').onchange=async function(e){
  if(selected&&(selected.calibration_preference==='legacy'||selected.calibration_mode==='legacy')&&!$('status').classList.contains('error')){dashboardLegacyPreferred=true;crApplyPolicy();if(rows.length)nativeRefresh();}refresh();
 };
 const oldTheme=setAppTheme;setAppTheme=function(mode){oldTheme(mode);document.documentElement.dataset.dashboardTheme=mode;};setAppTheme('dark');
+// Keep axis labels readable at every viewport without touching curve values.
+const dashboardPlotBase=plot;plot=function(points){
+ const canvas=$('plot'),ctx=canvas.getContext('2d'),fill=ctx.fillText,sx=canvas.clientWidth/canvas.width,sy=canvas.clientHeight/canvas.height;
+ if(sx>0&&sy>0)ctx.fillText=function(text,x,y,maxWidth){const size=Number.parseFloat(ctx.font.match(/([0-9.]+)px/)?.[1]||'12');ctx.save();ctx.scale(1/sx,1/sy);ctx.font=(ctx.font.includes('bold')?'700':'400')+' '+size+'px DashboardRound, sans-serif';if(maxWidth===undefined)fill.call(ctx,text,x*sx,y*sy);else fill.call(ctx,text,x*sx,y*sy,maxWidth*sx);ctx.restore();};
+ try{return dashboardPlotBase(points);}finally{ctx.fillText=fill;}
+};
+new ResizeObserver(()=>{if(latest?.curve)plot(latest.curve);}).observe($('dashboardGraphBody'));
+const dashboardExportBase=exportData;exportData=function(){const d=dashboardExportBase();if(d.settings.calibration_policy)d.settings.calibration_policy.legacy='Explicit Legacy selection uses preserved cal_* values: original per-pixel gain 200/current White; no calibration from channel means';return d;};
 const oldRender=renderResults;renderResults=function(...args){const r=oldRender(...args);refresh();return r;};
 const oldDraw=drawFrame;drawFrame=function(...args){const r=oldDraw(...args);
  if(sensor.length>=3){const ctx=frame.getContext('2d'),xs=sensor.map(p=>p[0]*960),ys=sensor.map(p=>p[1]*540),x=Math.max(4,Math.min(840,Math.min(...xs))),y=Math.max(20,Math.min(...ys)-7);ctx.save();ctx.font='700 14px DashboardRound, sans-serif';const text='Sensor ROI',w=ctx.measureText(text).width+14;ctx.fillStyle='#a580dd';ctx.fillRect(x,y-18,w,22);ctx.fillStyle='#fff';ctx.fillText(text,x+7,y-2);ctx.restore();}

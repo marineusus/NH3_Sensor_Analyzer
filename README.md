@@ -2,6 +2,16 @@
 
 기존 `sensor_analysis_브라우저형_흰색스펀지.html`을 기반으로 만든 Windows 데스크톱 분석기입니다. HTML 화면·ROI·연구 분석 정의를 유지하면서 반복 영상 읽기와 픽셀 연산을 Python/OpenCV/NumPy로 분리했습니다. 인터넷 업로드 없이 원본 파일을 직접 읽습니다.
 
+## 새 대시보드
+
+보라·파랑 파스텔 테마, 실제 NanumSquareRound Regular/Bold, 7단계 작업 패널을 사용합니다. **1센서 전용**이며 여러 영상 파일을 이어 읽는 기능은 유지합니다. 분석 ROI는 보라색, 독립적인 White Reference는 파란 점선입니다. 창을 최대화해 사용하면 영상·그래프와 설정 패널을 함께 보기 편합니다.
+
+왼쪽 단계를 누르면 오른쪽 작업 내용만 바뀝니다. 중앙 영상·좌표·분석 데이터는 유지되며 메뉴 이동 때문에 재디코딩하지 않습니다. 1366×768에서는 긴 설정과 적용 버튼을 오른쪽 패널 내부에서 스크롤해 접근할 수 있습니다. 영상은 컨테이너 안에서 16:9 분석 좌표의 비율을 유지하며 강제로 늘리거나 자르지 않습니다.
+
+`frontend/js/dashboard.js`, `frontend/dashboard.css`는 기존 DOM과 이벤트를 재사용합니다. Raw/Relative 선택은 기존 그대로이며 Legacy 메뉴는 이미 계산하던 `cal_*`(픽셀별 200/current White)를 선택해 보여 줍니다. 새로운 보정 수식은 추가하지 않았습니다. 흰 스펀지 수동 지정 버튼은 기존 Shift+클릭 진입 동작을 호출합니다.
+
+폰트 원본과 OFL 전문은 `frontend/assets/fonts/`에 포함합니다. 설치나 외부 CDN이 필요 없습니다. 참고: [네이버 글꼴 안내](https://hangeul.naver.com/font).
+
 ## 실행
 
 배포본은 **ZIP을 모두 풀고** 폴더 안의 `NH3SensorAnalyzer.exe`를 실행하세요. exe만 다른 곳으로 옮기면 작동하지 않습니다. Windows 10/11 64bit 및 Microsoft Edge WebView2 Runtime이 필요합니다. Python은 배포본에 포함됩니다. 첫 실행·바이러스 검사·PC 성능에 따라 시작 시간은 달라집니다.
@@ -57,3 +67,9 @@ powershell -File build.ps1
 `requirements-lock.txt`는 검증 환경 전체 의존성 기록입니다. 배포 크기/실행 시간/분석 속도는 실측값을 `VALIDATION.md`에 기록하며 30MB·1초 실행·10배 개선을 보장하지 않습니다. 무거운 ML/과학 그래프 패키지를 추가하지 않았습니다. 보고서용 한글 글꼴은 원본에 포함되어 있던 것을 유지했습니다.
 
 오류 로그: `%LOCALAPPDATA%\NH3SensorAnalyzer\app.log`. 기본 동작은 영상을 읽기만 합니다. 영상·추출 결과·실험 설정은 Git에 자동 업로드하지 않습니다.
+
+## UI 검증 (개발용)
+
+`tests/serve_ui_test.py D:/video`는 localhost 테스트 어댑터이며 배포 앱에는 포함되지 않습니다. 출력 URL을 Playwright가 설치된 Node 환경에서 `node tests/ui_layout.cjs URL OUTPUT_DIR`로 열면 1920×1080, 1600×900, 1366×768 스크린샷 및 좌표·상태 유지 검사를 수행합니다. `PLAYWRIGHT_MODULE`로 별도 설치 경로를 지정할 수 있습니다. 테스트에 사용한 실험 영상과 스크린샷은 공개 Git에 저장하지 않습니다.
+
+디자인 변경 전 기능 완성본은 Git 태그 `functional-baseline-v1`로 보존되어 있습니다. 분석 엔진과 API 파일은 해당 태그 이후 디자인 단계에서 변경하지 않았습니다.

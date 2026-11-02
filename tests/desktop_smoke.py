@@ -27,7 +27,7 @@ with tempfile.TemporaryDirectory(prefix='nh3-smoke-') as temp:
         try:
             # Loaded event occurs before the API handshake on some WebView2 versions.
             for _ in range(100):
-                if window.evaluate_js("Boolean(window.pywebview?.api?.start_analysis && typeof desktopExtract==='function')"):
+                if window.evaluate_js("Boolean(window.pywebview?.api?.start_analysis && typeof desktopExtract==='function' && window.dashboardUI && document.readyState==='complete')"):
                     break
                 time.sleep(.1)
             setup='''
@@ -40,8 +40,8 @@ window.smokeErrors=[];window.addEventListener('error',e=>smokeErrors.push(e.mess
 window.smokeDone=false;
 (async()=>{try{await showPreview();await start();
 const c=config();const a=assess(weights,c);const g=cxMetadata(cxGeometry(c));
-const d=exportData(),info=readReportInfo();info.photos=false;const pages=buildReportPages(a,rank(),checkDataQuality(a),calculateCalibration(a),info,[]);const photo=await captureSensorPhoto(rows[0]);
-window.smokeResult={report_pages:pages.length,photo_ok:!!photo,status:$('status').textContent,rows:rows.length,first:rows[0],last:rows.at(-1),calibration:researchCalibration,
+const d=exportData(),info=readReportInfo();info.photos=false;const pages=buildReportPages(a,rank(),checkDataQuality(a),calculateCalibration(a),info,[]);const photo=await captureSensorPhoto(rows[0]);await openReportSettings();$('reportPhotos').checked=false;await makeReportPreview();const reportPreviewReady=!$('reportPreview').hidden&&$('reportPreview').contentDocument?.body?.children.length>0&&$('reportPreview').contentDocument.fonts.status==='loaded';if($('reportDialog').open)$('reportDialog').close();
+window.smokeResult={report_preview_ready:reportPreviewReady,report_pages:pages.length,photo_ok:!!photo,status:$('status').textContent,rows:rows.length,first:rows[0],last:rows.at(-1),calibration:researchCalibration,
 cycles:a.cycles,geometry:g,raw:researchRawRecords().length,relative:crRelativeRecords().length,
 excel_bytes:excelBytes(d).length,zip_bytes:zip([['settings.json',JSON.stringify(d.settings)],['colors.csv',csv(d.colors)]]).length,errors:smokeErrors};
 }catch(e){window.smokeResult={failure:e.stack};}finally{window.smokeDone=true;}})();
@@ -66,7 +66,7 @@ if baseline.exists() and not result.get('failure'):
             result['failure']='Numerical/UI baseline mismatch: '+key
             break
 print(json.dumps(result,ensure_ascii=False,indent=2))
-if result.get('failure') or result.get('errors') or result.get('rows')!=16 or result.get('excel_bytes',0)<1000 or result.get('report_pages',0)<1 or not result.get('photo_ok'):
+if result.get('failure') or result.get('errors') or result.get('rows')!=16 or result.get('excel_bytes',0)<1000 or result.get('report_pages',0)<1 or not result.get('photo_ok') or not result.get('report_preview_ready'):
     raise SystemExit(1)
 
 
