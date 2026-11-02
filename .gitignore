@@ -225,3 +225,6 @@ __marimo__/
 *.MOV
 *.avi
 local-results/
+
+# Reproducible desktop build configuration
+!NH3SensorAnalyzer.spec

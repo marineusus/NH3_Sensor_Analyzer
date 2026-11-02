@@ -188,7 +188,11 @@ def main():
     parser.add_argument('--debug',action='store_true')
     args=parser.parse_args()
     import webview
+    import sys
     from os import environ
+    if sys.platform == 'win32':
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('marineusus.NH3SensorAnalyzer')
     logdir=Path(environ.get('LOCALAPPDATA',str(Path.cwd())))/'NH3SensorAnalyzer'
     logdir.mkdir(parents=True,exist_ok=True)
     logging.basicConfig(filename=logdir/'app.log',level=logging.INFO,encoding='utf-8')
@@ -198,7 +202,9 @@ def main():
                                 js_api=api,width=1480,height=960,min_size=(1000,700))
     api._window=window
     window.events.closed+=api.close
-    webview.start(gui='edgechromium',debug=args.debug)
+    # Frozen WinForms windows use the embedded EXE icon; source runs use the same ICO.
+    source_icon = None if getattr(sys, 'frozen', False) else str(ROOT/'assets/app.ico')
+    webview.start(gui='edgechromium',debug=args.debug,icon=source_icon)
 
 
 if __name__=='__main__':
