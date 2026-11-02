@@ -198,4 +198,9 @@ new MutationObserver(refresh).observe($('status'),{childList:true,characterData:
 // Delegation changes only presentation. It neither redecodes nor reevaluates.
 shell.addEventListener('input',()=>{touched.add(activeStep);refresh();});shell.addEventListener('change',()=>{touched.add(activeStep);refresh();});
 setStep(4);fitVideo();
+// The legacy DOM remains measurable while hidden. Reveal only the final layout
+// after both UI font weights are ready; never paint the pre-dashboard screen.
+Promise.all([document.fonts.load('400 14px DashboardRound','가스 센서 NH₃'),document.fonts.load('700 14px DashboardRound','가스 센서 NH₃')])
+ .catch(()=>{})
+ .then(()=>requestAnimationFrame(()=>{fitVideo();document.documentElement.classList.remove('nh3-booting');window.dispatchEvent(new Event('nh3dashboardready'));}));
 })();
