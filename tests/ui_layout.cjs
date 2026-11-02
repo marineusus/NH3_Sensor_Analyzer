@@ -60,14 +60,16 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   await page.screenshot({path:path.join(output,`NH3_UI_${width}x${height}.png`),fullPage:false});result.push(metrics);
  }
 
- // A real decode error must preserve rows and mark the existing export as partial.
+ // The formerly failing camera MP4 must now finish and preserve real PTS.
  await page.locator('.stepButton[data-step="2"]').click();
  await page.locator('#fps').fill('0.01');await page.locator('#firstInjection').fill('300');await page.locator('#firstInjection').press('Tab');
  await page.locator('.stepButton[data-step="3"]').click();assert(await page.locator('#dashboardStep3 #start').count());await page.locator('#start').click();await page.waitForTimeout(1500);const startState=await page.evaluate(()=>({rows:rows.length,busy,status:document.getElementById('status').textContent}));if(!startState.busy&&!startState.rows)throw Error(JSON.stringify({startState,errors}));
- try{await page.waitForFunction(()=>rows.length>0&&!busy&&document.getElementById('status').classList.contains('error'),null,{timeout:45000});}catch(e){console.log(await page.evaluate(()=>({rows:rows.length,busy,cancel,status:document.getElementById('status').textContent,fps:document.getElementById('fps').value})));await page.screenshot({path:path.join(output,'UI_test_debug.png')});throw e;}
- assert(await page.evaluate(()=>cancel===true&&exportData().settings.partial===true));
+ await page.waitForFunction(()=>rows.length>0&&!busy,null,{timeout:60000});
+ assert(await page.evaluate(()=>cancel===false&&exportData().settings.partial===false),'Camera extraction must finish');
+ assert(await page.evaluate(()=>rows.at(-1).time_s>=899&&rows.every(r=>r.timestamp_source==='ffmpeg_frame_pts')),'Read past the old 356-second failure through EOF with actual PTS');
+ assert(await page.evaluate(()=>exportData().settings.video_metadata[0].sampling.unique_samples===rows.length));
  await page.locator('.stepButton[data-step="4"]').click();
- await page.screenshot({path:path.join(output,'NH3_UI_부분결과.png')});
+ await page.screenshot({path:path.join(output,'NH3_UI_추출완료.png')});
  assert.deepStrictEqual(errors,[]);fs.writeFileSync(path.join(output,'layout-validation.json'),JSON.stringify({result,errors,frame_requests:frames,white_automatic:whiteAutomatic},null,2));
  console.log(JSON.stringify({result,errors},null,2));await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

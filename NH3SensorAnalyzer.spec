@@ -1,11 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
+from importlib.metadata import distribution
 
 
 a = Analysis(
     ['app.py'],
     pathex=[],
     binaries=[],
-    datas=[('frontend', 'frontend')],
+    datas=[('frontend', 'frontend'), ('licenses', 'licenses'),
+           (str(distribution('av').locate_file('av-19.0.2.dist-info/licenses/LICENSE.txt')), 'licenses/PyAV')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -14,6 +16,9 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+# Video decoding now uses PyAV. OpenCV's separate VideoCapture FFmpeg plugin
+# is no longer called by the app; retaining it would duplicate the decoder.
+a.binaries = [entry for entry in a.binaries if 'opencv_videoio_ffmpeg' not in entry[0].lower()]
 pyz = PYZ(a.pure)
 
 exe = EXE(

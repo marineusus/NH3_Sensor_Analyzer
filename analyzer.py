@@ -68,70 +68,121 @@ def pixel_stats(rgb, gain=None):
 
 
 class VideoReader:
-    def __init__(self, path, decoder_mode='auto'):
+    """PTS-based FFmpeg reader; empty camera samples are not decoder EOF.
+
+    Some SStar MP4 files have zero-byte samples with valid timestamps. Passing
+    those to avcodec_send_packet stops OpenCV's VideoCapture prematurely. PyAV
+    lets us omit only those empty packets and retain the next real frame's PTS.
+    Pixel calculations and the OpenCV INTER_LINEAR letterbox stay unchanged.
+    """
+    def __init__(self, path, decoder_mode='auto', stop=None):
+        import av
+        from av.codec.hwaccel import HWAccel
+        import sys
         self.path = str(path)
-        params=[cv2.CAP_PROP_HW_ACCELERATION,cv2.VIDEO_ACCELERATION_ANY if decoder_mode=='auto' else cv2.VIDEO_ACCELERATION_NONE]
-        self.cap = cv2.VideoCapture(self.path, cv2.CAP_FFMPEG,params)
-        if not self.cap.isOpened() and decoder_mode=='auto':
-            self.cap = cv2.VideoCapture(self.path, cv2.CAP_FFMPEG)
-        self.acceleration=int(self.cap.get(cv2.CAP_PROP_HW_ACCELERATION)) if self.cap.isOpened() else 0
-        self.decoder_mode=decoder_mode
-        if not self.cap.isOpened():
-            raise ValueError(f'Cannot open video: {Path(path).name}')
-        self.fps = self.cap.get(cv2.CAP_PROP_FPS)
-        self.frames = self.cap.get(cv2.CAP_PROP_FRAME_COUNT)
-        if not math.isfinite(self.fps) or self.fps <= 0 or self.frames <= 0:
-            self.close()
-            raise ValueError('Cannot determine video duration/frame rate')
-        self.duration = self.frames / self.fps
-        self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        self.last_index = -1
+        self.decoder_mode = decoder_mode
+        self.stop = stop
+        self.container = None
+        self.acceleration = 0
+        self.empty_packets = 0
         self.last_time = None
+        self.last_target = None
+        self._last_image = None
+        self._iterator = None
+        try:
+            hw = HWAccel('d3d11va', allow_software_fallback=True) if decoder_mode == 'auto' and sys.platform == 'win32' else None
+            try:
+                self.container = av.open(self.path, hwaccel=hw)
+            except av.FFmpegError:
+                if hw is None:
+                    raise
+                self.container = av.open(self.path)
+            self.stream = self.container.streams.video[0]
+            self.stream.thread_type = 'AUTO'
+            self.stream.codec_context.thread_count = 4
+            self.fps = float(self.stream.average_rate or self.stream.guessed_rate or 0)
+            self.frames = self.stream.frames
+            self._origin = float((self.stream.start_time or 0) * self.stream.time_base)
+            self.duration = float(self.stream.duration * self.stream.time_base) if self.stream.duration else float(self.container.duration or 0) / av.time_base
+            self.width = self.stream.codec_context.width
+            self.height = self.stream.codec_context.height
+            if not math.isfinite(self.fps) or self.fps <= 0 or not math.isfinite(self.duration) or self.duration <= 0:
+                raise ValueError('Cannot determine video duration/frame rate')
+            self.acceleration = 2 if self.stream.codec_context.is_hwaccel else 0
+        except Exception as error:
+            self.close()
+            raise ValueError(f'Cannot open video: {Path(path).name}: {error}') from error
 
     def metadata(self):
         return dict(name=Path(self.path).name, duration_s=self.duration,
-                    width=self.width, height=self.height, fps=self.fps, frames=int(self.frames),decoder_mode=self.decoder_mode,hw_acceleration=self.acceleration)
+                    width=self.width, height=self.height, fps=self.fps, frames=int(self.frames),
+                    decoder_mode=self.decoder_mode, hw_acceleration=self.acceleration,
+                    decoder_backend='PyAV FFmpeg', timestamp_source='ffmpeg_frame_pts')
+
+    def _frames(self):
+        for packet in self.container.demux(self.stream):
+            if self.stop is not None and self.stop.is_set():
+                raise InterruptedError('영상 추출을 중지했습니다.')
+            if packet.size == 0 and (packet.pts is not None or packet.dts is not None):
+                # A timed zero-size camera sample is not the final flush packet.
+                self.empty_packets += 1
+                continue
+            # Preserve the untimed end-of-stream packet to drain delayed frames.
+            yield from packet.decode()
 
     def read(self, target):
         target = max(0.0, min(float(target), self.duration - .001))
-        # Seek by presentation time. FFmpeg seeks to a keyframe and decodes forward.
-        # Nearby targets use grab(), avoiding repeated keyframe decoding.
-        if self.last_time is None or target <= self.last_time + 1e-7 or target - self.last_time > .5:
-            if not self.cap.set(cv2.CAP_PROP_POS_MSEC, target * 1000):
-                raise ValueError('Decoder could not seek to requested time')
-        ok, bgr = self.cap.read()
-        if not ok:
-            raise ValueError(f'Video decoding failed at {target:.3f}s; analysis stopped without inventing samples')
-        time_s = self.cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
-        source = 'opencv_ffmpeg_pos_msec'
-        if not math.isfinite(time_s) or time_s < 0 or (target > 1 and time_s == 0):
-            time_s = (self.cap.get(cv2.CAP_PROP_POS_FRAMES) - 1) / self.fps
-            source = 'opencv_frame_index_fps_approx'
-        while time_s + .5 / self.fps < target:
-            ok = self.cap.grab()
-            if not ok:
-                raise ValueError(f'Video ended unexpectedly at {target:.3f}s')
-            time_s = self.cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
-            if not math.isfinite(time_s) or (target > 1 and time_s == 0):
-                time_s = (self.cap.get(cv2.CAP_PROP_POS_FRAMES) - 1) / self.fps
-                source = 'opencv_frame_index_fps_approx'
-            bgr = None
-        if bgr is None:
-            ok, bgr = self.cap.retrieve()
-            if not ok:
-                raise ValueError('Cannot retrieve selected frame')
-        self.last_time = time_s
+        # Successive requested times can land in the same empty interval. Reuse
+        # its next real frame with the SAME actual PTS; analysis deduplicates it.
+        if self.last_time is not None and self.last_target <= target <= self.last_time:
+            self.last_target = target
+            return self._last_image, self.last_time, 'ffmpeg_frame_pts'
+        try:
+            seeked = self._iterator is None or target <= self.last_target or target - self.last_time > .5
+            if seeked:
+                self.container.seek(int((target + self._origin) / self.stream.time_base),
+                                    stream=self.stream, backward=True)
+                self._iterator = self._frames()
+            tail = None
+            for frame in self._iterator:
+                if frame.pts is None:
+                    raise ValueError('Decoded frame has no presentation timestamp')
+                time_s = float(frame.pts * frame.time_base) - self._origin
+                if time_s + .5 / self.fps < target:
+                    tail = frame
+                    continue
+                return self._image(frame, time_s, target)
+            if tail is not None:
+                # A request inside the final frame/empty tail has no later frame.
+                # Return the last REAL PTS, never relabel it as the requested time.
+                return self._image(tail, float(tail.pts * tail.time_base) - self._origin, target)
+            if not seeked and self._last_image is not None:
+                self.last_target = target
+                return self._last_image, self.last_time, 'ffmpeg_frame_pts'
+            raise ValueError('No decodable frame at requested time')
+        except InterruptedError:
+            raise
+        except Exception as error:
+            raise ValueError(f'Video decoding failed at {target:.3f}s ({Path(self.path).name}): {error}; no samples invented') from error
+
+    def _image(self, frame, time_s, target):
+        bgr = frame.to_ndarray(format='bgr24')
         ratio = min(W / bgr.shape[1], H / bgr.shape[0])
         nw, nh = max(1, round(bgr.shape[1] * ratio)), max(1, round(bgr.shape[0] * ratio))
         resized = cv2.resize(bgr, (nw, nh), interpolation=cv2.INTER_LINEAR)
         result = np.zeros((H, W, 3), dtype=np.uint8)
         x, y = (W - nw) // 2, (H - nh) // 2
         result[y:y + nh, x:x + nw] = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
-        return result, time_s, source
+        self.last_time, self.last_target, self._last_image = time_s, target, result
+        self.acceleration = 2 if self.stream.codec_context.is_hwaccel else 0
+        return result, time_s, 'ffmpeg_frame_pts'
 
     def close(self):
-        self.cap.release()
+        if self.container is not None:
+            self.container.close()
+            self.container = None
+        self._iterator = None
+        self._last_image = None
 
 
 def white_stats(frame, roi, enabled=True):
@@ -268,7 +319,7 @@ def prepare_baseline(paths, metas, roi, c, stop):
     for path,meta in zip(paths,metas):
         local = targets[(targets>=offset)&(targets<offset+meta['duration_s'])]
         if len(local):
-            reader = VideoReader(path,c.get('decoder_mode','auto'))
+            reader = VideoReader(path,c.get('decoder_mode','auto'),stop)
             try:
                 for target in local:
                     if stop.is_set():
@@ -299,21 +350,38 @@ def analyze_video(paths, roi, c, progress=None, stop=None, sink=None):
     roi = prepare_roi(roi)
     metas = []
     for path in paths:
-        reader = VideoReader(path,c.get('decoder_mode','auto'))
+        reader = VideoReader(path,c.get('decoder_mode','auto'),stop)
         metas.append(reader.metadata());reader.close()
     cal = prepare_baseline(paths,metas,roi,c,stop)
     total,offset,models,out = sum(m['duration_s'] for m in metas),0,PixelModels(),[]
     count = 0
     for i,(path,meta) in enumerate(zip(paths,metas)):
-        reader = VideoReader(path,c.get('decoder_mode','auto'))
+        reader = VideoReader(path,c.get('decoder_mode','auto'),stop)
         last = -math.inf
+        coverage = meta['sampling'] = dict(requested_samples=0, unique_samples=0,
+            duplicate_requests=0, shifted_requests=0, max_request_shift_s=0,
+            max_sample_gap_s=0, first_actual_s=None, last_actual_s=None,
+            empty_packet_reads=0)
         try:
             for target in np.arange(0,meta['duration_s']-.001,1/c['fps']):
                 if stop.is_set():
                     return dict(rows=out,calibration=cal,file_meta=metas,cancelled=True,_models=models)
                 frame,ts,source = reader.read(float(target))
+                coverage['requested_samples'] += 1
+                coverage['empty_packet_reads'] = reader.empty_packets
+                shift = abs(ts-float(target))
+                if shift > .5/reader.fps+1e-7:
+                    coverage['shifted_requests'] += 1
+                    coverage['max_request_shift_s'] = max(coverage['max_request_shift_s'],shift)
                 if ts<=last+1e-7:
+                    coverage['duplicate_requests'] += 1
                     continue
+                coverage['unique_samples'] += 1
+                if coverage['first_actual_s'] is None:
+                    coverage['first_actual_s'] = ts
+                if math.isfinite(last):
+                    coverage['max_sample_gap_s'] = max(coverage['max_sample_gap_s'],ts-last)
+                coverage['last_actual_s'] = ts
                 r = dict(video=meta['name'],time_s=ts,requested_time_s=float(target),global_time_s=offset+ts,timestamp_source=source,decoder_acceleration=reader.acceleration,
                          **sample(frame,roi,cal['white_baseline'],models,offset+ts,c))
                 (sink or out.append)(r);count+=1;last=ts

@@ -64,8 +64,8 @@ async function desktopExtract(){
  const roi=buildROI(c),payloadROI={ids_runs:cxRuns(roi.ids),rect:roi.rect,geometry:roi.geometry,variants:roi.variants,white_reference:roi.white_reference};
  c.decoder_mode=$('desktopDecoder').value;
  c.relative_start=Number($('relativeStart').value);c.relative_end=Number($('relativeEnd').value);
- c.research_calibration=structuredClone(researchCalibration);c.source='OpenCV FFmpeg local original; no upload or reencoding';
- c.decoder={backend:'OpenCV FFmpeg',resize:'960×540 letterbox, INTER_LINEAR',timestamp:'presentation milliseconds; fallback explicitly marked',compatibility:'equations and masks preserved; browser/OpenCV decoded pixels may differ'};
+ c.research_calibration=structuredClone(researchCalibration);c.source='PyAV FFmpeg local original + OpenCV resize; no upload or reencoding';
+ c.decoder={backend:'PyAV FFmpeg',resize:'960×540 letterbox, OpenCV INTER_LINEAR',timestamp:'actual decoded frame PTS; timed zero-byte packets skipped; duplicate frames not counted twice',compatibility:'equations and masks preserved; browser/native decoded pixels may differ'};
  let started=false;
  $('start').disabled=true;$('desktopOpen').disabled=true;
  try{
@@ -85,7 +85,8 @@ async function desktopExtract(){
    await new Promise(resolve=>setTimeout(resolve,180));
   }
   renderVideoSummary();crApplyPolicy();
-  $('warnings').textContent='OpenCV와 브라우저 디코더·축소 보간 차이로 기존 CSV와 픽셀값이 조금 다를 수 있습니다. 수식·ROI 마스크는 유지됩니다. '+(rows.some(r=>r.timestamp_source.endsWith('approx'))?'일부 시각은 프레임 번호/FPS 근사값입니다. ':'');
+  const shifted=fileMeta.reduce((n,f)=>n+(f.sampling?.shifted_requests||0),0),duplicates=fileMeta.reduce((n,f)=>n+(f.sampling?.duplicate_requests||0),0);
+  $('warnings').textContent='수식·ROI 마스크는 유지됩니다. 브라우저와 영상 디코더·축소 보간 차이로 기존 CSV와 픽셀값이 조금 다를 수 있습니다. '+(shifted?'원본의 빈 영상 표본 구간은 다음 실제 프레임의 시각(PTS)으로 기록했습니다. 중복 요청 '+duplicates+'개는 추가 표본으로 세지 않았습니다. 파일별 시간 간격은 저장 결과의 video_metadata.sampling에 기록됩니다.':'');
   if(rows.length){await evaluate();researchRefreshCalibration();cxRefresh();}
   if(last.state==='done'){
    drawProgress({percent:100,videoPercent:100,index:files.length,total:files.length,name:files.at(-1).name,frames:rows.length});
@@ -95,6 +96,17 @@ async function desktopExtract(){
  finally{busy=false;$('start').disabled=false;$('desktopOpen').disabled=false;desktopJob=null;}
 }
 cancelAnalysis=function(){cancel=true;desktopCall('cancel_analysis').catch(e=>status(e.message,true));status('중지 요청 · 현재 프레임 후 표본을 보존합니다.');};
+
+// Keep the legacy export's analytical values; describe the actual native reader.
+const desktopOriginalExport=exportData;
+exportData=function(){
+ const d=desktopOriginalExport();
+ if(rows.some(r=>r.timestamp_source==='ffmpeg_frame_pts')){
+  d.settings.source='Local original video; PyAV FFmpeg decoding + OpenCV resize';
+  d.settings.timing='Actual decoded frame PTS; requested_time_s is the sampling target. Timed zero-byte packets skipped; repeated real frames deduplicated. See video_metadata.sampling for gaps.';
+ }
+ return d;
+};
 
 // Existing responsive-mask UI already has a native-reader extension point.
 async function readerConnect(file){return {reader_id:file.id};}

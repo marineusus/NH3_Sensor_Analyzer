@@ -42,7 +42,7 @@ function renderRank(candidates,note){let root=$('rank');root.innerHTML='';let sc
 function plot(points){let canvas=$('plot'),ctx=canvas.getContext('2d'),p=points.filter(x=>x[1]!==null&&Number.isFinite(x[1]));ctx.clearRect(0,0,1000,300);if(!p.length)return;let xmin=points[0][0],xmax=points.at(-1)[0],ys=p.map(x=>x[1]),min=ys.reduce((a,b)=>Math.min(a,b),Infinity),max=ys.reduce((a,b)=>Math.max(a,b),-Infinity);let metric=latest?.analysis_metric;if(metric?.basis==='actual'&&['R','G','B','S','V'].includes(metric.channel)){min=0;max=['R','G','B'].includes(metric.channel)?255:100}else if(metric?.basis==='difference'){min=Math.min(0,min);max=Math.max(0,max)}if(max===min)max=min+1;let X=t=>65+(t-xmin)/(xmax-xmin||1)*910,Y=y=>245-(y-min)/(max-min)*205;ctx.font='12px sans-serif';let prepEnd=initialRecoveryPhase(config())?.end_s??null;if(prepEnd>xmin){let prepStart=Math.max(0,xmin),prepStop=Math.min(xmax,prepEnd);if(prepStop>prepStart){ctx.fillStyle=document.documentElement.dataset.theme==='dark'?'rgba(82,119,150,.15)':'rgba(66,136,190,.10)';ctx.fillRect(X(prepStart),30,X(prepStop)-X(prepStart),215)}}for(let [a,b,end] of ((timingUnresolved||latest?.timing_unresolved)?[]:scheduleRanges())){for(let [s,e,color] of [[a,b,'rgba(214,115,56,.13)'],[b,end,'rgba(66,136,190,.10)']]){s=Math.max(xmin,s);e=Math.min(xmax,e);if(e>s){ctx.fillStyle=color;ctx.fillRect(X(s),30,X(e)-X(s),215)}}}ctx.strokeStyle=document.documentElement.dataset.theme==='dark'?'#34384f':'#dce5eb';ctx.fillStyle=document.documentElement.dataset.theme==='dark'?'#b5adc8':'#526b7c';for(let i=0;i<5;i++){let y=min+(max-min)*i/4;ctx.beginPath();ctx.moveTo(65,Y(y));ctx.lineTo(975,Y(y));ctx.stroke();ctx.fillText(y.toFixed(3),10,Y(y)+4)}ctx.save();ctx.setLineDash([4,4]);ctx.strokeStyle='#91a4b2';uiDataMeta.slice(1).forEach((m,i)=>{if(m.start_s<=xmin||m.start_s>=xmax)return;ctx.beginPath();ctx.moveTo(X(m.start_s),25);ctx.lineTo(X(m.start_s),245);ctx.stroke();ctx.fillStyle=document.documentElement.dataset.theme==='dark'?'#a99dbc':'#607586';ctx.fillText('영상 '+(i+2),X(m.start_s)+4,20)});ctx.restore();ctx.strokeStyle=document.documentElement.dataset.theme==='dark'?'#c39af5':'#7266b7';ctx.lineWidth=2;ctx.beginPath();let begun=false;for(let [t,y] of points){if(y===null||!Number.isFinite(y)){begun=false;continue}if(!begun){ctx.moveTo(X(t),Y(y));begun=true}else ctx.lineTo(X(t),Y(y))}ctx.stroke();ctx.fillStyle=document.documentElement.dataset.theme==='dark'?'#b5adc8':'#526b7c';for(let i=0;i<=5;i++){let t=xmin+(xmax-xmin)*i/5;ctx.fillText(t.toFixed(0),X(t)-10,267)}ctx.fillText('연속 촬영 시작 후 시간(초)',365,292)}
 
 
-let sensor=[],white=[0,0,0,0],mode='sensor',image=new Image(),anchor=null,weights=[-1,0,1,0,0,0],latest=null,timer=null,files=[],rows=[],busy=false,cancel=false,currentURL=null,fileMeta=[],imported=false,extractionSettings=null;const names=['R','G','B','H','S','V'],$=id=>document.getElementById(id);const video=$('decoder'),surface=document.createElement('canvas');surface.width=960;surface.height=540;const sx=surface.getContext('2d',{willReadFrequently:true});
+let sensor=[],white=[0,0,0,0],mode='sensor',image=new Image(),anchor=null,weights=[-1,0,1,0,0,0],latest=null,timer=null,files=[],rows=[],busy=false,cancel=false,fileMeta=[],imported=false,extractionSettings=null;const names=['R','G','B','H','S','V'],$=id=>document.getElementById(id);const video=$('decoder'),surface=document.createElement('canvas');surface.width=960;surface.height=540;const sx=surface.getContext('2d',{willReadFrequently:true});
 function status(msg,error=false){$('status').textContent=msg;$('status').className='status'+(error?' error':'')}
 function configBase(){let c={videos:files.map(f=>f.name),sensor:sensor.map(p=>p.slice()),white:white.slice(),weights:weights.slice(),confirmed:$('confirmed').checked,analysis_resolution:[960,540],calibration:'canvas sRGB pixel gain 200/white channel mean, then per-pixel HSV; relative reference',source:'browser local file; no upload',timeline:'files connected with zero gap'};for(let k of ['fps','edge','initial','on','off','cycles','baseline_window','recovery_percent'])c[k]=Number($(k).value);if(imported)c.source='imported CSV; existing colors preserved; ROI changes apply only to new video extraction';return c}
 function validate(c){planRanges(c);for(let k of ['fps','edge','initial','on','off','cycles','baseline_window','recovery_percent'])if(!Number.isFinite(c[k]))throw Error('설정에 숫자를 입력하세요.');if(c.recovery_percent<1||c.recovery_percent>99)throw Error('회복 기준은 1~99%로 입력하세요.');if(c.fps<.01||c.fps>30||c.initial<0||c.on<=0||c.off<=0||c.baseline_window<=0||!Number.isInteger(c.cycles)||c.cycles<1||c.cycles>100||!Number.isInteger(c.edge)||c.edge<0||c.edge>80)throw Error('FPS 0.01~30, 초기 대기≥0, 주입·회복·평균 시간>0, 반복1~100, 가장자리0~80px를 입력하세요.')}
@@ -52,43 +52,13 @@ for(let k of ['initial','on','off','cycles','baseline_window','recovery_percent'
 function listFiles(){let select=$('previewVideo'),list=$('fileList');select.innerHTML='';list.innerHTML='';files.forEach((f,i)=>{let o=document.createElement('option');o.value=i;o.textContent=f.name;select.append(o);let li=document.createElement('li');li.textContent=f.name;list.append(li)});renderVideoSummary()}
 $('videoFiles').onchange=async e=>{if(busy){status('분석을 중지한 뒤 파일을 바꿔주세요.',true);return}files=Array.from(e.target.files).filter(f=>!f.name.includes('복사본')).sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));listFiles();if(files.length)await showPreview();else status('선택된 영상이 없습니다. 복사본은 제외합니다.')};
 function moveFile(direction){if(busy)return;let i=Number($('previewVideo').value),j=i+direction;if(j<0||j>=files.length)return;[files[i],files[j]]=[files[j],files[i]];listFiles();$('previewVideo').value=j;showPreview()}
-function waitEvent(el,good,timeout=20000){return new Promise((resolve,reject)=>{let id=setTimeout(()=>end(Error('영상을 읽는 시간이 오래 걸립니다. 재생 가능한 파일인지 확인하세요.')),timeout);function end(error){clearTimeout(id);el.removeEventListener(good,ok);el.removeEventListener('error',bad);error?reject(error):resolve()}function ok(){end()}function bad(){end(Error('파일은 선택됐지만 이 브라우저가 영상 코덱을 재생하지 못합니다. HEVC(H.265) 원본이면 H.264 MP4로 변환하거나 재생을 지원하는 PC에서 여세요.'))}el.addEventListener(good,ok,{once:true});el.addEventListener('error',bad,{once:true})})}
-async function loadVideo(file){if(currentURL)URL.revokeObjectURL(currentURL);currentURL=URL.createObjectURL(file);let ready=waitEvent(video,'loadeddata');video.src=currentURL;video.load();await ready;if(!Number.isFinite(video.duration)||video.duration<=0)throw Error('영상 길이를 읽지 못했습니다.');return video.duration}
-async function seekFrame(target){target=Math.max(0,Math.min(target,video.duration-.001));let framePromise=null,id=null;if(video.requestVideoFrameCallback)framePromise=new Promise(resolve=>{id=video.requestVideoFrameCallback((_,m)=>resolve({time:m.mediaTime,source:'decoded_mediaTime'}));setTimeout(()=>resolve(null),2000)});let seeked=waitEvent(video,'seeked',20000);video.currentTime=Math.abs(video.currentTime-target)<1e-7?Math.min(target+.00001,video.duration-.001):target;await seeked;let meta=framePromise?await framePromise:null;if(!meta&&id!==null)video.cancelVideoFrameCallback(id);if(!meta){await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));meta={time:video.currentTime,source:'seek_currentTime_approx'}}sx.fillStyle='black';sx.fillRect(0,0,960,540);let ratio=Math.min(960/video.videoWidth,540/video.videoHeight),w=video.videoWidth*ratio,h=video.videoHeight*ratio;sx.drawImage(video,(960-w)/2,(540-h)/2,w,h);return meta}
+// Video loading and preview are supplied exclusively by desktop.js.
+let loadVideo,seekFrame,showPreviewBase;
 const previewVerifiedFiles=new WeakSet();
 function previewHasVisiblePixels(){
  const pixels=sx.getImageData(0,0,960,540).data;
  for(let i=0;i<pixels.length;i+=4)if(Math.max(pixels[i],pixels[i+1],pixels[i+2])>=5)return true;
  return false;
-}
-async function showPreviewBase(){
- if(busy)throw Error('분석 중에는 미리보기를 바꾸지 마세요.');
- const f=files[Number($('previewVideo').value)];
- if(!f)throw Error('먼저 영상을 선택하세요.');
- status('영상 미리보기 여는 중…');
- const duration=await loadVideo(f),last=Math.max(0,duration-.001);
- $('previewTime').max=Math.max(0,duration-.1);
- $('videoDurationLabel').textContent='전체 길이 '+formatSeconds(duration);
- let target=Math.max(0,Math.min(Number($('previewTime').value)||0,last));
- await seekFrame(target);image=surface;drawFrame();
- let visible=previewHasVisiblePixels();
- const checked=[target];
- if(!visible&&!previewVerifiedFiles.has(f)){
-  status('첫 화면이 어둡습니다. 다른 시점의 재생 상태 확인 중…');
-  for(const t of [...new Set([target+.1,target+1,target+3,.1,1,3].map(t=>Math.min(t,last)))]){
-   if(checked.some(s=>Math.abs(s-t)<.01))continue;
-   await seekFrame(t);checked.push(t);
-   if(previewHasVisiblePixels()){target=t;visible=true;break;}
-  }
-  if(!visible){
-   await seekFrame(target);image=surface;drawFrame();
-   throw Error(f.name+' · 여러 시점('+checked.map(t=>t.toFixed(1)+'초').join(', ')+')에서 검은 화면이 읽혔습니다. 실제로 검은 장면인지, 브라우저 재생 문제인지 확인하세요. HEVC(H.265) 원본은 재생 환경을 확인하거나 H.264 MP4 사본으로 변환하세요.');
-  }
- }
- if(visible)previewVerifiedFiles.add(f);
- $('previewTime').value=target;
- image=surface;drawFrame();
- status(f.name+' · '+duration.toFixed(1)+'초 · 미리보기 열림'+(checked.length>1?' · '+target.toFixed(1)+'초 화면으로 이동':!visible?' · 현재 장면이 어둡습니다. 다른 시점도 확인하세요.':''));
 }
 
 function drawProgress(p){$('overallProgress').value=p.percent;$('progressPercent').textContent=p.percent.toFixed(1)+'%';$('videoProgress').value=p.videoPercent;$('videoPercent').textContent=p.videoPercent.toFixed(1)+'%';$('progressVideo').textContent='영상 '+p.index+' / '+p.total+' · '+p.name;$('progressDetail').textContent=p.frames.toLocaleString()+'개 프레임 색상 추출'+(p.saving?' · 완료 결과 준비 중':'')}

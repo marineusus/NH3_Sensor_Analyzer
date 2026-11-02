@@ -86,9 +86,7 @@ config=function(){
 buildROI=function(c){const g=cxGeometry(c),[x,y,w,h]=c.white,rect=[Math.round(x*cxW),Math.round(y*cxH),Math.round((x+w)*cxW),Math.round((y+h)*cxH)];if(rect[0]<0||rect[1]<0||rect[2]>cxW||rect[3]>cxH||rect[2]-rect[0]<4||rect[3]-rect[1]<4)throw Error('White Reference를 화면 안에 충분히 크게 지정하세요.');for(let yy=rect[1];yy<rect[3];yy++)for(let xx=rect[0];xx<rect[2];xx++)if(g.outer[yy*cxW+xx])throw Error('센서 원본 윤곽과 White Reference가 겹칩니다.');return {ids:g.selected.ids.slice(),rect,geometry:cxMetadata(g),variants:Object.entries(g.variants).map(([key,v])=>({key,ids_runs:cxRuns(v.ids),pixel_count:v.ids.length,percent:v.percent,shape:v.shape,angle_deg:v.rectangle?.angle_deg??null,rectangle:v.rectangle}))};};
 const cxValidate=validate;
 validate=function(c){cxValidate({...c,edge:Math.min(80,c.edge)});if(!Number.isFinite(c.response_pixel_rule.k)||c.response_pixel_rule.k<=0||!Number.isFinite(c.response_pixel_rule.delta_min)||c.response_pixel_rule.delta_min<0||!Number.isFinite(c.onset_rule.k)||c.onset_rule.k<=0)throw Error('픽셀 반응 및 Onset 기준을 확인하세요.');buildROI(c);};
-const cxLoad=loadVideo,cxSeek=seekFrame;
-loadVideo=async function(f){cxFrame={file:f.name,time_s:0};return cxLoad(f);};
-seekFrame=async function(t){const m=await cxSeek(t);if(cxFrame)cxFrame.time_s=m.time;return m;};
+
 const cxAuto=autoSensorBase;
 autoSensorBase=function(){cxAuto();cxReference=cxFrame?{...cxFrame}:null;cxCache=null;drawFrame();};
 function cxBoundary(ctx,mask,color){ctx.strokeStyle=color;ctx.lineWidth=1;ctx.beginPath();for(let y=0;y<cxH;y++)for(let x=0;x<cxW;x++){let i=y*cxW+x;if(!mask[i])continue;if(!y||!mask[i-cxW]){ctx.moveTo(x,y);ctx.lineTo(x+1,y);}if(!x||!mask[i-1]){ctx.moveTo(x,y);ctx.lineTo(x,y+1);}if(y===cxH-1||!mask[i+cxW]){ctx.moveTo(x,y+1);ctx.lineTo(x+1,y+1);}if(x===cxW-1||!mask[i+1]){ctx.moveTo(x+1,y);ctx.lineTo(x+1,y+1);}}ctx.stroke();}
