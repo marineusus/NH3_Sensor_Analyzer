@@ -130,7 +130,7 @@ $('frame').onpointerdown=async function(e){
   const selected=await desktopCall('select_sponge',file.id,frame.time_s,point,searchROI);
   if(epoch!==desktopSelectionEpoch||desktopCurrentFile?.id!==file.id||cxFrame?.time_s!==frame.time_s)return;
   sensor=selected.polygon.map(p=>p.slice());mode='none';anchor=null;cxCache=null;cxReference=frame;
-  drawFrame();status('클릭한 스펀지 선택 완료 · 노란 윤곽과 초록 내부 ROI를 확인한 뒤 색상 추출을 시작하세요.');
+  drawFrame();status('클릭한 스펀지 선택 완료 · 보라색 센서 윤곽과 내부 ROI를 확인한 뒤 색상 추출을 시작하세요.');
  }catch(error){status(error.message,true);}finally{desktopSelecting=false;if(desktopSensorButton)desktopSensorButton.disabled=false;}
 };
 $('frame').onpointermove=function(e){if(mode==='desktopSensor'||desktopSelecting)return;return desktopPointerMove?.call(this,e);};
