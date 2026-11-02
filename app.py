@@ -13,6 +13,7 @@ from analyzer import (VideoReader, analyze_video, prepare_roi, sample, png_base6
 from detection import detect_sponges, select_sponge
 
 ROOT = Path(__file__).resolve().parent
+APP_VERSION = '1.4.0'
 
 
 class Api:
@@ -186,7 +187,16 @@ class Api:
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--debug',action='store_true')
+    parser.add_argument('--verify-videos',metavar='FOLDER',help=argparse.SUPPRESS)
+    parser.add_argument('--verification-output',metavar='JSON',help=argparse.SUPPRESS)
+    parser.add_argument('--verification-fps',type=float,default=.5,help=argparse.SUPPRESS)
     args=parser.parse_args()
+    if args.verify_videos:
+        if not args.verification_output:
+            parser.error('--verification-output is required with --verify-videos')
+        from verification import verify_video_folder
+        verify_video_folder(args.verify_videos,args.verification_output,args.verification_fps)
+        return
     import webview
     import sys
     from os import environ
@@ -196,9 +206,10 @@ def main():
     logdir=Path(environ.get('LOCALAPPDATA',str(Path.cwd())))/'NH3SensorAnalyzer'
     logdir.mkdir(parents=True,exist_ok=True)
     logging.basicConfig(filename=logdir/'app.log',level=logging.INFO,encoding='utf-8')
+    logging.info('NH3SensorAnalyzer %s; PyAV FFmpeg reader', APP_VERSION)
     api=Api()
     webview.settings['ALLOW_DOWNLOADS']=True
-    window=webview.create_window('NH₃ 센서 영상 분석 · OpenCV',str(ROOT/'frontend/index.html'),
+    window=webview.create_window('NH₃ 센서 영상 분석 · v'+APP_VERSION,str(ROOT/'frontend/index.html'),
                                 js_api=api,width=1480,height=960,min_size=(1000,700))
     api._window=window
     window.events.closed+=api.close

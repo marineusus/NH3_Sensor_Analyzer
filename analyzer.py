@@ -320,11 +320,19 @@ def prepare_baseline(paths, metas, roi, c, stop):
         local = targets[(targets>=offset)&(targets<offset+meta['duration_s'])]
         if len(local):
             reader = VideoReader(path,c.get('decoder_mode','auto'),stop)
+            last = -math.inf
             try:
                 for target in local:
                     if stop.is_set():
                         raise InterruptedError('초기 White 기준 수집을 중지했습니다.')
                     frame,ts,_ = reader.read(float(target-offset))
+                    if ts <= last+1e-7:
+                        continue
+                    last = ts
+                    # A following real frame can lie beyond the selected initial
+                    # White window. Never use a future/exposed frame as baseline.
+                    if not first <= offset+ts < limit:
+                        continue
                     rgb,sat = white_stats(frame,roi)
                     if all(x is not None and x>=5 for x in rgb) and sat<=.01:
                         collected.append((offset+ts,rgb))

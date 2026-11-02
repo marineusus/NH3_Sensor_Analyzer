@@ -1,15 +1,21 @@
 # -*- mode: python ; coding: utf-8 -*-
 from importlib.metadata import distribution
+import os
+from pathlib import Path
+
+minimal_cv = os.environ.get('NH3_MINIMAL_OPENCV')
+if minimal_cv and not (Path(minimal_cv)/'cv2.pyd').is_file():
+    raise ValueError('NH3_MINIMAL_OPENCV must contain the verified minimal cv2.pyd')
 
 
 a = Analysis(
     ['app.py'],
-    pathex=[],
+    pathex=[minimal_cv] if minimal_cv else [],
     binaries=[],
     datas=[('frontend', 'frontend'), ('licenses', 'licenses'),
            (str(distribution('av').locate_file('av-19.0.2.dist-info/licenses/LICENSE.txt')), 'licenses/PyAV')],
     hiddenimports=[],
-    hookspath=[],
+    hookspath=['packaging/minimal-hooks'] if minimal_cv else [],
     hooksconfig={},
     runtime_hooks=[],
     excludes=['tkinter'],
@@ -28,6 +34,7 @@ exe = EXE(
     exclude_binaries=True,
     name='NH3SensorAnalyzer',
     icon='assets/app.ico',
+    version='packaging/version_info.txt',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

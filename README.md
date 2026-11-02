@@ -91,3 +91,23 @@ powershell -File build.ps1
 최종 대시보드 구조를 `index.html`에 직접 배치합니다. 이전 화면의 헤더·메인 그리드, CSS 17개 및 이전 UI 글꼴 초기화 스크립트를 제거했습니다. `components.css`는 기능별 컴포넌트의 공통 규칙이고 `dashboard.css`는 최종 테마·레이아웃입니다. 분석 함수와 입력 ID는 호환 유지하되, 옛 화면 전체를 생성한 후 재배치하지 않습니다.
 
 시작 단계는 영상 선택입니다. **영상 선택 → 조건 설정 → ROI 설정 → 3단계의 색상 추출 시작** 순서로 사용합니다. 중지와 진행률도 ROI 단계에 있습니다. White Reference 초기 좌표는 비어 있고 보정도 미설정입니다. 사용자가 배경을 드래그하거나 흰 스펀지를 지정한 경우에만 기준 영역을 활성화합니다. 이전 설정 JSON에 저장된 기준은 명시적으로 불러와 복원할 수 있습니다.
+
+## 경량 빌드 재현 (Windows x64, Python 3.14)
+
+앱에 필요한 OpenCV 모듈만 포함하는 선택 빌드입니다. 영상/ROI/색상 계산을 삭제하거나 수식을 바꾸는 방식이 아닙니다. 빌드 도구와 원본 소스는 배포 폴더에 포함하지 않습니다.
+
+```powershell
+.venv/Scripts/python -m pip install --target ../native-build-tools -r requirements-native-build.txt
+.venv/Scripts/python packaging/build_minimal_opencv.py --workspace ../native-cv --tools ../native-build-tools --output ../lean-runtime
+./build.ps1 -MinimalOpenCV ../lean-runtime
+```
+
+`./build.ps1`만 실행하면 공식 범용 OpenCV를 사용하는 표준 빌드입니다. 개발용 원본 HTML과 과거 디자인/라이브러리 빌드 자료는 EXE 데이터에 포함하지 않습니다. 보고서 내장 글꼴은 별도의 나눔고딕 사본 대신 UI의 NanumSquareRound R/B를 재사용하고, HTML을 저장할 때만 두 글꼴을 문서 안에 넣습니다.
+
+EXE 자체의 독립 엔진 검사(현재 열려 있는 창에 영향을 주지 않음):
+
+```powershell
+./dist/NH3SensorAnalyzer/NH3SensorAnalyzer.exe --verify-videos "D:/video/실험폴더" --verification-output "검증결과.json" --verification-fps .5
+```
+
+이 모드는 오른쪽 스펀지 안의 고정 8,000픽셀·Raw로 읽기/시각/표본 범위를 검사합니다. 사용자가 편집한 ROI의 실험 결과를 대신하지 않습니다.

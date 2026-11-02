@@ -27,14 +27,45 @@ OpenCV INTER_LINEAR 축소/letterbox, ROI, White Reference, Float64 RGB/HSV, 반
 
 총 3,466표본, 약 1,105초 소요. SD 카드·GPU·CPU 부하에 따라 달라지는 실측이며 다른 PC 속도 보장이 아닙니다. 0바이트 구간 때문에 균일 FPS 목표보다 고유 표본이 적습니다. 원본 파일을 수정/재인코딩하지 않았습니다.
 
-두 번째 폴더의 동일 0.5 FPS 전체 검사는 진행 중이며 완료 후 기록을 추가합니다.
+## 실제 D 드라이브 두 번째 폴더 — 0.5 FPS
+
+`left(20mg)_right(30mg)_2,5,10,20ppm`도 동일한 Raw/고정 ROI 조건으로 8개 모두 완료했습니다.
+
+| 파일 | 고유 표본 수 | 마지막 실제 시각(초) |
+|---|---:|---:|
+| VID-0000 | 426 | 904.333 |
+| VID-0001 | 421 | 900.000 |
+| VID-0002 | 450 | 900.000 |
+| VID-0003 | 435 | 903.033 |
+| VID-0004 | 449 | 900.000 |
+| VID-0005 | 434 | 900.633 |
+| VID-0006 | 429 | 902.033 |
+| VID-0007 | 327 | 668.000 |
+
+총 3,371표본, 약 855.4초 소요. 두 폴더의 이 전체 검사는 Python 엔진 호출로 수행했습니다. 동일 코드의 최종 EXE 자체를 호출하는 독립 검증도 별도로 실행합니다. CLI 검증은 창/현재 추출 상태를 건드리지 않고 요청한 JSON만 기록합니다.
+
+실제 일반 EXE UI에서는 두 번째 폴더 VID-0000을 PC 파일 선택 창으로 선택하고 오른쪽 스펀지를 클릭하여 최종 ROI 55,080픽셀을 생성했습니다. 미리보기 356/370/600/850/899초를 읽고, 추가 UI 검사 FPS 0.05에서 46표본·21.0초·100%·partial=false로 완료했습니다. 이 UI 검사의 FPS를 0.5로 주장하지 않습니다. 899초 요청은 실제 존재하는 다음 프레임 904.333초로 기록했습니다.
+
 
 ## 회귀 및 UI 검사
 
 - 실제 MP4 sample table에 빈 패킷 구간을 재현한 회귀 검사: 1초 요청에서 실제 2.75초 프레임을 반환하고, 같은 프레임을 중복 표본으로 집계하지 않음. 역방향 탐색·끝 프레임 반복 요청 포함.
-- 기본 자동 검사 10개 통과: 원본 JavaScript 수식 비교, 보정, 반응 픽셀, 연결 시각, 취소 표본 보존, 읽을 수 없는 파일 오류, 한글·공백 PC 경로 미리보기.
+- 기본 자동 검사 11개 통과: 원본 JavaScript 수식 비교, 보정, 반응 픽셀, 연결 시각, 취소 표본 보존, 읽을 수 없는 파일 오류, 한글·공백 PC 경로 미리보기.
 - 실제 WebView2 합성 영상: 16표본, 색상·회차·보정·ROI 수치가 디자인 이전 기준과 일치. 의도적으로 바뀐 timestamp_source 이름만 기준 fixture에서 수정. 사진·7쪽 보고서 구성·글꼴 로딩·Excel/ZIP 저장 통과.
 - 실제 Edge + Python 연결 UI: 기존 356초 오류가 나던 원본을 낮은 검증 FPS로 파일 끝까지 추출, `partial=false`, 실제 PTS, sampling 메타데이터 확인. 1920×1080 / 1600×900 / 1366×768 좌표·비율·화면 접근 검사 통과.
 - 기존 브라우저 전용 미리보기/로더 및 이를 감싸던 사용하지 않는 래퍼 제거. 화면과 저장 보고서 모두 기존 UI 자산 NanumSquareRound Regular/Bold를 재사용. 보고서를 만들 때만 두 글꼴을 HTML 안에 넣어 다른 PC에서도 독립적으로 열 수 있게 함.
 
 검증 명령: `python -m unittest discover -s tests -v`, `python tests/desktop_smoke.py`, `python tests/real_camera_smoke.py FOLDER RESULT.json --fps .5`.
+
+## 경량 OpenCV 비교
+
+공식 opencv-python-headless 5.0.0.93 소스의 core/imgproc/imgcodecs/python3 및 필요한 geometry/flann 의존성을 원본 수정 없이 빌드했습니다. 실제 앱이 호출하는 resize/cvtColor/PNG/윤곽/GrabCut 등은 유지하고 DNN/카메라 창/별도 VideoCapture 부품과 IPP를 포함하지 않습니다. 영상 디코딩은 PyAV/FFmpeg가 계속 담당합니다.
+
+- cv2.pyd: 85,848,064 → 15,185,920 bytes.
+- 4K 무작위 영상 INTER_LINEAR 축소 결과: 픽셀 차이 최댓값 0.
+- 두 실제 폴더의 좌/우 스펀지 클릭 4개: 기존 빌드와 윤곽·bounds·선택 메타데이터 정확히 일치.
+- 경량 모듈로 자동 검사 11개 통과. 동일 합성 영상 WebView2 회귀 검사에서 최초/마지막 색상값, 회차, 보정, ROI 기하, 16표본, Excel/ZIP 및 보고서 구성 기준 일치.
+- White 초기 기준 역시 실제 PTS 창 안의 서로 다른 프레임만 집계하고, 빈 구간 뒤의 미래/노출 프레임을 기준에 넣지 않는 회귀 검사 추가.
+- 화면/보고서는 NanumSquareRound Regular/Bold를 공용으로 사용하고, 저장 보고서 HTML 안에 두 글꼴을 내장함을 확인.
+
+재현: `requirements-native-build.txt`는 개발 도구이며 EXE에 포함하지 않습니다. `packaging/build_minimal_opencv.py`로 바이너리를 만들고 `build.ps1 -MinimalOpenCV <폴더>`로 빌드합니다. 기본 빌드는 공식 범용 OpenCV wheel을 사용하며 계속 지원합니다. 원본 비교용 reference/original.html도 EXE에는 포함되지 않습니다.

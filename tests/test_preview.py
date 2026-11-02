@@ -1,15 +1,21 @@
 import base64,tempfile,unittest
 from pathlib import Path
 import cv2,numpy as np
+import av
 from app import Api
 
 class Preview(unittest.TestCase):
     def test_local_unicode_path_and_time_seek(self):
         with tempfile.TemporaryDirectory() as temp:
             folder=Path(temp)/'한글 경로 영상';folder.mkdir();p=folder/'평균색 확인.mp4'
-            writer=cv2.VideoWriter(str(p),cv2.VideoWriter_fourcc(*'mp4v'),4,(160,90))
-            for i in range(8):writer.write(np.full((90,160,3),[30+i*10,100,180],dtype=np.uint8))
-            writer.release();api=Api()
+            with av.open(str(p),'w') as output:
+                stream=output.add_stream('mpeg4',rate=4)
+                stream.width,stream.height,stream.pix_fmt=160,90,'yuv420p'
+                for i in range(8):
+                    frame=av.VideoFrame.from_ndarray(np.full((90,160,3),[30+i*10,100,180],dtype=np.uint8),format='bgr24')
+                    output.mux(stream.encode(frame))
+                output.mux(stream.encode(None))
+            api=Api()
             try:
                 files=api._register([p]);self.assertEqual(len(files),1)
                 for t in [0,1]:

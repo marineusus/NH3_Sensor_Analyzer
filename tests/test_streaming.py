@@ -2,7 +2,7 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
-import cv2
+import av
 import numpy as np
 from analyzer import analyze_video
 
@@ -12,9 +12,14 @@ class Streaming(unittest.TestCase):
         self.paths=[]
         for name in ['a.mp4','b.mp4']:
             p=Path(self.tmp.name)/name
-            writer=cv2.VideoWriter(str(p),cv2.VideoWriter_fourcc(*'mp4v'),10,(160,90))
-            for i in range(20):writer.write(np.full((90,160,3),100+i,dtype=np.uint8))
-            writer.release();self.paths.append(p)
+            with av.open(str(p),'w') as output:
+                stream=output.add_stream('mpeg4',rate=10)
+                stream.width,stream.height,stream.pix_fmt=160,90,'yuv420p'
+                for i in range(20):
+                    frame=av.VideoFrame.from_ndarray(np.full((90,160,3),100+i,dtype=np.uint8),format='bgr24')
+                    output.mux(stream.encode(frame))
+                output.mux(stream.encode(None))
+            self.paths.append(p)
         self.roi=dict(ids_runs=[[960*200+100,40]],rect=[0,0,0,0],variants=[])
         self.c=dict(fps=2,white_enabled=False,relative_start=0,relative_end=1,cycle_plan=[dict(gas_on_s=1,gas_off_s=2,recovery_end_s=4)],first_injection_auto=False,baseline_window=1,response_pixel_rule=dict(metric='V',k=3,delta_min=1),response_excluded_times=[])
     def tearDown(self):self.tmp.cleanup()

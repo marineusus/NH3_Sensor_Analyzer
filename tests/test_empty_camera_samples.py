@@ -5,7 +5,8 @@ import unittest
 from pathlib import Path
 import av
 import numpy as np
-from analyzer import VideoReader, analyze_video
+from analyzer import VideoReader, analyze_video, prepare_baseline
+import threading
 
 
 def box(kind, data):
@@ -116,6 +117,24 @@ class EmptyCameraSamples(unittest.TestCase):
         result = analyze_video(self.path, roi, config)
         self.assertEqual([r['time_s'] for r in result['rows']], [0,.5,2.75,3,3.5])
         self.assertFalse(result['cancelled'])
+
+    def test_white_baseline_uses_unique_frames_inside_actual_time_window(self):
+        reader = VideoReader(self.path, 'software')
+        try:
+            meta = reader.metadata()
+        finally:
+            reader.close()
+        roi = dict(rect=[20,20,50,50])
+        config = dict(fps=4, white_enabled=True, relative_start=0, relative_end=3,
+            cycle_plan=[dict(gas_on_s=3)], first_injection_auto=False,
+            decoder_mode='software')
+        cal = prepare_baseline([self.path], [meta], roi, config, threading.Event())
+        self.assertEqual(cal['samples'], 4)
+        self.assertEqual(cal['actual_end_s'], 2.75)
+        config.update(relative_start=.75, relative_end=2.6)
+        cal = prepare_baseline([self.path], [meta], roi, config, threading.Event())
+        self.assertEqual(cal['samples'], 0)
+        self.assertIsNone(cal['white_baseline'])
 
 
 if __name__ == '__main__':
