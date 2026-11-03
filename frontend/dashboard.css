@@ -56,3 +56,13 @@ body:has(#dashboard),#dashboardHeader,#dashboard{font-family:DashboardRound,'Mal
 #dashboard #planTable :is(th,td):nth-child(6){grid-column:5;grid-row:1}
 #dashboard #planTable input{width:100%;min-width:0;max-width:none;padding:6px 4px;font-size:13px;height:32px;min-height:32px;text-align:center}
 #dashboard #planTable button{width:27px;min-width:0;height:28px;min-height:28px;margin:0;padding:0;font-size:15px;border-radius:6px}
+
+/* Axis controls appear only when the graph axis label is activated. */
+#chartAxisDialog{width:min(440px,calc(100vw - 32px));font-family:DashboardRound,sans-serif}
+#chartAxisDialog h2{font-size:19px;margin:0 0 10px}#chartAxisDialog .hint{font-size:13px;line-height:1.6}
+.chartAxisFields{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0 8px}
+.chartAxisFields label{display:grid;gap:7px;font-size:14px}.chartAxisFields input{width:100%;min-width:0}
+#chartAxisError{color:#ffb8bd;font-size:13px;min-height:20px;margin:8px 0}
+.chartAxisActions{display:flex;justify-content:flex-end;gap:8px}.chartAxisActions button{font:inherit;font-size:14px}
+#chartAxisAuto{margin-right:auto}canvas[aria-label^="그래프."]:focus-visible{outline:2px solid #ad99ed}
+#chartAxisDialog .primary{background:linear-gradient(110deg,#bd97ef,#89b2ff);color:#fff;border-color:#aaa6ee}
