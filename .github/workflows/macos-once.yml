@@ -1,6 +1,15 @@
 name: Build macOS app (manual only)
 on:
   workflow_dispatch:
+    inputs:
+      macos_runner:
+        description: Apple Silicon build host
+        type: choice
+        default: macos-14
+        options:
+          - macos-14
+          - macos-15
+          - macos-26
 permissions:
   contents: read
 jobs:
@@ -9,9 +18,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-15
-            arch: AppleSilicon
-    runs-on: ${{ matrix.runner }}
+          - arch: AppleSilicon
+    runs-on: ${{ inputs.macos_runner }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4

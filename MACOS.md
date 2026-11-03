@@ -2,7 +2,7 @@
 
 기준 배포본은 계속 Windows EXE입니다. 이번 Mac 패키지만 따로 빌드하며 분석 수식, ROI, White Reference, RGB/HSV, 화면과 결과 저장은 같은 소스를 사용합니다.
 
-- macOS 14 이상. 빌드·자동 검증 환경은 macOS 15입니다.
+- macOS 14 이상. 빌드·자동 검증 환경의 실제 버전은 함께 제공하는 검증 기록에 남깁니다.
 - `AppleSilicon`: M1/M2/M3/M4 등 Apple 칩 맥북.
 - 이번 배포는 팀원의 M시리즈 맥북용입니다. Intel 버전은 만들지 않습니다.
 - 해당 ZIP을 풀고 `NH3SensorAnalyzer.app`을 응용 프로그램 폴더로 옮겨 실행합니다. Python, Homebrew, WebView2 설치는 필요 없습니다.
