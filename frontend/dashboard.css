@@ -40,22 +40,14 @@ button,input,textarea,select,dialog{font-family:DashboardRound,'Malgun Gothic',s
 body:has(#dashboard),#dashboardHeader,#dashboard{font-family:DashboardRound,'Malgun Gothic',sans-serif!important}
 #dashVideoEmpty #dashEmptyOpen{pointer-events:auto;min-height:36px;margin-top:8px;font-size:14px;padding:8px 18px}#dashboardStatus{position:relative}#dashboard #dashQuickCancel{position:absolute;right:4px;top:3px;min-height:25px;height:25px;padding:3px 10px;font-size:12px;margin:0;border-color:#ad8fc9;background:#7e587c}#dashboardStatus.isRunning #status{padding-right:62px}
 .currentMeanTop{display:flex;align-items:center;gap:13px;padding:13px;border:1px solid #5b6583;border-radius:11px;background:#242d45;margin:10px 0 13px}#dashMeanSwatch{display:block;width:64px;height:48px;border-radius:8px;border:1px solid #9ba6bf;flex-shrink:0}#dashMeanSwatch.empty{background:repeating-linear-gradient(135deg,#48516a 0 7px,#303a52 7px 14px)}.currentMeanTop strong{font-size:16px}.currentMeanTop p{font-size:11px!important;line-height:1.5;margin:5px 0 0;color:var(--dash-muted)}#dashboard .measuredColorRow{display:grid;grid-template-columns:98px minmax(45px,1fr) 67px;gap:9px;min-height:38px;align-items:center}.measuredColorLabel{display:flex;align-items:center;gap:8px;font-size:12px;white-space:nowrap}.measuredColorLabel b{display:grid;place-items:center;width:28px;height:28px;border-radius:7px;color:white;font-size:16px}#dashboard .measuredColorRow input{appearance:none;opacity:1;height:16px!important;min-height:0!important;pointer-events:none;padding:0;margin:0;width:100%}#dashboard .measuredColorRow input::-webkit-slider-runnable-track{height:4px;border-radius:3px;background:linear-gradient(90deg,#727c99,var(--measure-color))}#dashboard .measuredColorRow input::-webkit-slider-thumb{appearance:none;width:13px;height:13px;border-radius:50%;margin-top:-4.5px;background:#e7edf9;border:2px solid var(--measure-color)}.measuredColorRow output{display:block;padding:4px 5px;border:1px solid #59647f;background:#252d44;border-radius:6px;font-size:13px;text-align:right;color:#e8eafa;font-variant-numeric:tabular-nums}#dashboard .dashboardNativeChoice{margin:8px 0 10px}#dashboard .dashboardNativeChoice label{font-size:12px}#dashboard .dashboardNativeChoice select{font-size:13px}#dashboardColorPanel .hint{font-size:11px}.dashboardRunActions{position:sticky;bottom:0;z-index:3;display:flex;gap:7px;background:var(--dash-card);border-top:1px solid #4c5875;padding:9px 0 5px;margin-top:12px}.dashboardRunActions #start{flex:1}#dashboardWeightsArea,#dashboardPresetArea,.dashboardTabs{display:none!important}
-/* Experiment sequence: fixed input columns with a full-width time summary. */
+/* Compact experiment rows: concentration, injection, recovery, remove. */
 #dashboard #planTable{display:block;width:100%;min-width:0;table-layout:auto;background:transparent}
 #dashboard #planTable thead,#dashboard #planTable tbody{display:block;width:100%}
-#dashboard #planTable tr{display:grid;grid-template-columns:22px minmax(52px,.8fr) minmax(66px,1fr) minmax(66px,1fr) 28px;gap:6px;align-items:center;width:100%;margin:0 0 9px;padding:10px 8px;border:1px solid #495671;border-radius:9px;background:#273149}
-#dashboard #planTable thead tr{border:0;background:#343d57;margin-bottom:8px;padding-top:8px;padding-bottom:8px}
+#dashboard #planTable tr{display:grid;grid-template-columns:22px minmax(52px,.8fr) minmax(66px,1fr) minmax(66px,1fr) 28px;gap:6px;align-items:center;width:100%;margin:0;padding:5px 2px;border:0;border-bottom:1px solid #45516b;border-radius:0;background:transparent}
+#dashboard #planTable thead tr{border:0;border-radius:7px;background:#343d57;margin-bottom:4px;padding:6px 2px}
 #dashboard #planTable :is(th,td){display:block;min-width:0;width:auto;padding:0;border:0;background:transparent;text-align:center;overflow-wrap:normal;word-break:keep-all;white-space:normal;font-size:11px;line-height:1.45}
-#dashboard #planTable :is(th,td):nth-child(1){grid-column:1;grid-row:1}
-#dashboard #planTable :is(th,td):nth-child(2){grid-column:2;grid-row:1}
-#dashboard #planTable :is(th,td):nth-child(3){grid-column:3;grid-row:1}
-#dashboard #planTable :is(th,td):nth-child(4){grid-column:4;grid-row:1}
-#dashboard #planTable th:nth-child(5){display:none}
-#dashboard #planTable td:nth-child(5){grid-column:2/5;grid-row:2;text-align:left;background:#202a41;border-radius:5px;padding:5px 8px;color:#aebde0;white-space:normal;word-break:normal;overflow-wrap:break-word;font-size:11px}
-#dashboard #planTable td:nth-child(5)::before{content:'시간 구간 · ';color:#8f9fbe}
-#dashboard #planTable :is(th,td):nth-child(6){grid-column:5;grid-row:1}
-#dashboard #planTable input{width:100%;min-width:0;max-width:none;padding:6px 4px;font-size:13px;height:32px;min-height:32px;text-align:center}
-#dashboard #planTable button{width:27px;min-width:0;height:28px;min-height:28px;margin:0;padding:0;font-size:15px;border-radius:6px}
+#dashboard #planTable input{width:100%;min-width:0;max-width:none;padding:4px;font-size:13px;height:30px;min-height:30px;text-align:center}
+#dashboard #planTable button{width:27px;min-width:0;height:26px;min-height:26px;margin:0;padding:0;font-size:15px;border-radius:6px}
 
 /* Axis controls appear only when the graph axis label is activated. */
 #chartAxisDialog{width:min(440px,calc(100vw - 32px));font-family:DashboardRound,sans-serif}
