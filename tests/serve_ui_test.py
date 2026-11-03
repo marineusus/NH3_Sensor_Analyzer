@@ -6,7 +6,8 @@ from pathlib import Path
 from http.server import ThreadingHTTPServer,SimpleHTTPRequestHandler
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from app import Api,ROOT
-api=Api();fixture=api._register([next(Path(sys.argv[1]).rglob('VID-0000.mp4'))]);token=secrets.token_hex(24)
+paths=sorted(Path(sys.argv[1]).glob('*.mp4')) if '--all-videos' in sys.argv else [next(Path(sys.argv[1]).rglob('VID-0000.mp4'))]
+api=Api();fixture=api._register(paths);token=secrets.token_hex(24)
 allowed={'set_decoder_mode','frame','sample_frame','select_sponge','detect','start_analysis','poll_analysis','cancel_analysis','responsive'}
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self,*args,**kwargs):super().__init__(*args,directory=str(ROOT/'frontend'),**kwargs)

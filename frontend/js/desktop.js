@@ -29,15 +29,18 @@ seekFrame=async function(target){
  sx.clearRect(0,0,960,540);sx.drawImage(decoded,0,0);cxFrame={file:f.name,time_s:result.time};
  return {time:result.time,source:result.source};
 };
-showPreviewBase=async function(){
+showPreviewBase=async function(globalTime){
  if(busy||desktopSelecting)throw Error('추출 또는 윤곽 선택이 끝난 뒤 미리보기를 바꾸세요.');
- const f=files[Number($('previewVideo').value)];if(!f)throw Error('먼저 영상을 선택하세요.');
- const previous={...desktopPreviewState};desktopPreviewFallback='';
+ const timeline=videoTimeline(files),segment=locateVideo(timeline,globalTime);
+ const f=segment.file,previous={...desktopPreviewState};desktopPreviewFallback='';
+ const previousImage=previous.valid?document.createElement('canvas'):null;
+ if(previousImage){previousImage.width=960;previousImage.height=540;previousImage.getContext('2d').drawImage(surface,0,0);}
+ $('previewVideo').value=segment.index;
  if(previous.file!==f.id)desktopPreviewState={valid:false,error:null,file:f.id,time:0};
  status('영상 미리보기 읽는 중 · '+f.name);
- const duration=await loadVideo(f);$('previewTime').max=Math.max(0,duration-.1);
- $('videoDurationLabel').textContent='전체 길이 '+formatSeconds(duration);
- let target=Math.max(0,Math.min(Number($('previewTime').value)||0,duration-.001)),meta;
+ const duration=await loadVideo(f);$('previewTime').max=timeline.at(-1).end_s;
+ $('videoDurationLabel').textContent='전체 길이 '+formatPreviewTime(timeline.at(-1).end_s)+' · '+files.length+'개 영상';
+ const target=segment.local_time_s;let meta;
  try{
   meta=await seekFrame(target);
   if(!previewHasVisiblePixels()&&!previewVerifiedFiles.has(f)){
@@ -45,12 +48,13 @@ showPreviewBase=async function(){
   }
   if(previewHasVisiblePixels())previewVerifiedFiles.add(f);
   desktopPreviewState={valid:true,error:null,file:f.id,time:meta.time};
-  $('previewTime').value=meta.time;image=surface;drawFrame();
+  $('previewTime').value=segment.start_s+meta.time;image=surface;drawFrame();
   status(f.name+' · '+duration.toFixed(1)+'초 · OpenCV 미리보기'+(desktopPreviewFallback?' · '+desktopPreviewFallback:'')+(!previewHasVisiblePixels()?' · 현재 장면의 실제 픽셀이 어둡습니다.':''));
  }catch(error){
-  if(previous.valid&&previous.file===f.id){desktopPreviewState=previous;cxFrame={file:f.name,time_s:previous.time};$('previewTime').value=previous.time;$('previewLabel').textContent=formatSeconds(previous.time);}
+  const restore=timeline.find(s=>s.file.id===previous.file);
+  if(previous.valid&&restore){desktopPreviewState=previous;desktopCurrentFile=restore.file;cxFrame={file:restore.file.name,time_s:previous.time};sx.clearRect(0,0,960,540);sx.drawImage(previousImage,0,0);image=surface;$('previewVideo').value=restore.index;$('previewTime').value=restore.start_s+previous.time;$('previewLabel').textContent=formatPreviewTime(restore.start_s+previous.time);drawFrame();}
   else{desktopPreviewState={valid:false,error:error.message,file:f.id,time:0};sx.clearRect(0,0,960,540);image=surface;drawFrame();}
-  throw Error(error.message+(previous.valid&&previous.file===f.id?' · 마지막 정상 미리보기 '+previous.time.toFixed(2)+'초를 유지합니다.':''));
+  throw Error(error.message+(previous.valid&&restore?' · 마지막 정상 미리보기 '+formatPreviewTime(restore.start_s+previous.time)+'를 유지합니다.':''));
  }
 };
 

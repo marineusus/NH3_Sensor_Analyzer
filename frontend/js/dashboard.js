@@ -107,13 +107,13 @@ const runActions=uiEl('div');runActions.className='dashboardRunActions';const st
 let activeStep=4;const touched=new Set();
 function setStep(n){activeStep=n;panes.forEach((p,i)=>p.hidden=i!==n-1);document.querySelectorAll('.stepButton').forEach(b=>{const on=Number(b.dataset.step)===n;b.classList.toggle('selected',on);b.setAttribute('aria-current',on?'step':'false');});$('dashboardWorkTitle').innerHTML=svg(iconPaths[n-1])+'<span>'+n+'. '+titles[n-1]+'</span>';$('dashboardWorkBody').scrollTop=0;refresh();}
 globalThis.dashboardUI={setStep,refresh,get activeStep(){return activeStep;}};
-function clock(value){if(!Number.isFinite(value))return '00:00';let n=Math.max(0,Math.floor(value));return (n>=3600?String(Math.floor(n/3600)).padStart(2,'0')+':':'')+String(Math.floor(n/60)%60).padStart(2,'0')+':'+String(n%60).padStart(2,'0');}
+function clock(value){if(!Number.isFinite(value))return '00:00';let n=Math.max(0,Math.round(value));return (n>=3600?String(Math.floor(n/3600)).padStart(2,'0')+':':'')+String(Math.floor(n/60)%60).padStart(2,'0')+':'+String(n%60).padStart(2,'0');}
 function refresh(){
  const f=files[Number($('previewVideo').value)]||null,t=Number($('previewTime').value)||0;
  $('dashQuickCancel').hidden=!busy;$('dashboardStatus').classList.toggle('isRunning',busy);
  const firstText=$('firstInjection').value,firstTime=Number(firstText);
  if($('firstTimingNote'))$('firstTimingNote').textContent=firstText!==''&&Number.isFinite(firstTime)?'입력한 첫 주입: 영상 '+firstTime+'초 · 시작 전 구간은 Initial Baseline / Air':Number.isFinite(estimatedFirst)?'색 변화로 추정한 첫 주입: 영상 '+estimatedFirst.toFixed(1)+'초 · 실제 장비 기록과 구분':'첫 주입 시각 미입력 · 색 변화 자동 추정 대기';
- $('dashFile').textContent=f?.name||(imported?'CSV 데이터':'영상 미선택');$('dashFile').title=f?.name||'';$('dashFPS').textContent='FPS '+$('fps').value;$('dashTime').textContent=clock(t)+' / '+clock(f?.duration_s);
+ $('dashFile').textContent=f?.name||(imported?'CSV 데이터':'영상 미선택');$('dashFile').title=f?.name||'';$('dashFPS').textContent='FPS '+$('fps').value;$('dashTime').textContent=clock(t)+' / '+clock(videoTimeline(files).at(-1)?.end_s);
  $('dashVideoEmpty').hidden=!!f&&desktopPreviewState.valid;if(f&&!desktopPreviewState.valid){$('dashVideoEmpty').querySelector('strong').textContent=desktopPreviewState.error?'미리보기를 읽지 못했습니다':'미리보기 불러오는 중';$('dashVideoEmpty').querySelector('p').textContent=desktopPreviewState.error||'원본 영상을 PC에서 읽고 있습니다.';}else{$('dashVideoEmpty').querySelector('strong').textContent='분석할 영상을 선택하세요';$('dashVideoEmpty').querySelector('p').textContent='스펀지 하나를 클릭하여 ROI를 설정합니다.';}$('dashGraphEmpty').hidden=!!rows.length;if(!rows.length)$('plotinfo').textContent='분석 데이터 없음 · 시간(초) / 선택 지표';
  $('dashGraphChannel').textContent=rows.length?($('nativeChannel').selectedOptions[0]?.textContent||'선택 지표'):'데이터 없음';
  $('dashSummaryMetric').textContent=rows.length?($('nativeChannel').selectedOptions[0]?.textContent||'미선택'):'미분석 · '+($('nativeChannel').selectedOptions[0]?.textContent||'미선택');

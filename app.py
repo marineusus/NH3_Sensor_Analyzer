@@ -13,7 +13,7 @@ from analyzer import (VideoReader, analyze_video, prepare_roi, sample, png_base6
 from detection import detect_sponges, select_sponge
 
 ROOT = Path(__file__).resolve().parent
-APP_VERSION = '1.4.2'
+APP_VERSION = '1.4.3'
 
 
 class Api:
