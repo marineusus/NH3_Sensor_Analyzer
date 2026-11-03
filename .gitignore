@@ -228,3 +228,4 @@ local-results/
 
 # Reproducible desktop build configuration
 !NH3SensorAnalyzer.spec
+!NH3SensorAnalyzer-macOS.spec

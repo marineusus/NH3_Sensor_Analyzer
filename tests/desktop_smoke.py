@@ -1,4 +1,4 @@
-"""Real WebView2 integration smoke test; creates a temporary synthetic video."""
+"""Native webview integration smoke test; creates a temporary synthetic video."""
 import json
 import os
 import sys
@@ -9,7 +9,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import cv2
 import numpy as np
 import webview
-from app import Api,ROOT
+from app import Api,ROOT,desktop_gui
 
 result={}
 with tempfile.TemporaryDirectory(prefix='nh3-smoke-') as temp:
@@ -62,7 +62,7 @@ excel_bytes:excelBytes(d).length,zip_bytes:zip([['settings.json',JSON.stringify(
         finally:
             api.close();window.destroy()
     window.events.loaded+=lambda:None
-    webview.start(run,gui='edgechromium')
+    webview.start(run,gui=desktop_gui())
 baseline=ROOT/'tests/fixtures/analysis-baseline.json'
 if baseline.exists() and not result.get('failure'):
     expected=json.loads(baseline.read_text(encoding='utf-8'))

@@ -16,6 +16,19 @@ ROOT = Path(__file__).resolve().parent
 APP_VERSION = '1.4.3'
 
 
+def desktop_gui():
+    import sys
+    return {'win32': 'edgechromium', 'darwin': 'cocoa'}.get(sys.platform)
+
+
+def log_directory():
+    import sys
+    from os import environ
+    if sys.platform == 'darwin':
+        return Path.home()/'Library/Logs/NH3SensorAnalyzer'
+    return Path(environ.get('LOCALAPPDATA',str(Path.cwd())))/'NH3SensorAnalyzer'
+
+
 class Api:
     def __init__(self):
         self._window = None
@@ -218,11 +231,10 @@ def main():
         return
     import webview
     import sys
-    from os import environ
     if sys.platform == 'win32':
         import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('marineusus.NH3SensorAnalyzer.Flangi')
-    logdir=Path(environ.get('LOCALAPPDATA',str(Path.cwd())))/'NH3SensorAnalyzer'
+    logdir=log_directory()
     logdir.mkdir(parents=True,exist_ok=True)
     logging.basicConfig(filename=logdir/'app.log',level=logging.INFO,encoding='utf-8')
     logging.info('NH3SensorAnalyzer %s; PyAV FFmpeg reader', APP_VERSION)
@@ -233,8 +245,8 @@ def main():
     api._window=window
     window.events.closed+=api.close
     # Frozen WinForms windows use the embedded EXE icon; source runs use the same ICO.
-    source_icon = None if getattr(sys, 'frozen', False) else str(ROOT/'assets/NH3SensorAnalyzer_Flangi_Final.ico')
-    webview.start(gui='edgechromium',debug=args.debug,icon=source_icon)
+    source_icon = str(ROOT/'assets/NH3SensorAnalyzer_Flangi_Final.ico') if sys.platform == 'win32' and not getattr(sys, 'frozen', False) else None
+    webview.start(gui=desktop_gui(),debug=args.debug,icon=source_icon)
 
 
 if __name__=='__main__':
