@@ -13,7 +13,7 @@ from analyzer import (VideoReader, analyze_video, prepare_roi, sample, png_base6
 from detection import detect_sponges, select_sponge
 
 ROOT = Path(__file__).resolve().parent
-APP_VERSION = '1.4.0'
+APP_VERSION = '1.4.1'
 
 
 class Api:
@@ -202,7 +202,7 @@ def main():
     from os import environ
     if sys.platform == 'win32':
         import ctypes
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('marineusus.NH3SensorAnalyzer')
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('marineusus.NH3SensorAnalyzer.Flangi')
     logdir=Path(environ.get('LOCALAPPDATA',str(Path.cwd())))/'NH3SensorAnalyzer'
     logdir.mkdir(parents=True,exist_ok=True)
     logging.basicConfig(filename=logdir/'app.log',level=logging.INFO,encoding='utf-8')
@@ -214,7 +214,7 @@ def main():
     api._window=window
     window.events.closed+=api.close
     # Frozen WinForms windows use the embedded EXE icon; source runs use the same ICO.
-    source_icon = None if getattr(sys, 'frozen', False) else str(ROOT/'assets/app.ico')
+    source_icon = None if getattr(sys, 'frozen', False) else str(ROOT/'assets/NH3SensorAnalyzer_Flangi_Final.ico')
     webview.start(gui='edgechromium',debug=args.debug,icon=source_icon)
 
 

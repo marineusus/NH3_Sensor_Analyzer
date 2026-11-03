@@ -1,4 +1,16 @@
-# 아이콘 및 프리셋 표 검증
+# v1.4.1 플랑이 최종 아이콘 검증
+
+- 제공된 `NH3SensorAnalyzer_Flangi_Final.ico` 원본을 그대로 적용. SHA256: `4a5307e4bccb7ccc2f5d17f1b1cc8657343f81d7da195a2e018bcd0fb1280931`.
+- 16/20/24/30/32/36/40/48/64/96/128/256px 12개 RGBA 리소스를 EXE에서 추출하여 원본과 바이트 일치 확인. 투명 배경·반투명 가장자리 유지. 이미지 재생성·크롭·색상 변경 없음.
+- 실행 창 WM_GETICON, 탐색기 EXE Shell 아이콘, 바탕화면 및 시작 메뉴 바로가기 Shell 아이콘을 밝고 어두운 배경에 렌더링하여 투명 모서리 확인.
+- Windows AppUserModelID: `marineusus.NH3SensorAnalyzer.Flangi`. 바로가기는 새 v1.4.1 EXE 리소스에 연결. 사용자가 별도로 고정한 작업표시줄 항목은 강제 삭제하거나 전체 캐시를 초기화하지 않음.
+- 기존 `assets/app.ico` 제거, spec은 새 ICO 참조. onedir/windowed 및 최소 OpenCV 빌드 옵션 유지. ICO/참고 PNG 중복 배포 없음.
+- 이전 v1.4와 내장 PYZ 분석 엔진 바이트 동일. `_internal`은 base_library.zip의 ZIP 메타데이터 외 동일하며 해당 ZIP의 모든 파일 내용도 동일. UI·분석·ROI 계산 변경 없음.
+- 이전 v1.4 7z 한 개를 백업으로 보관하고 오래된 사용자용 배포 폴더와 중복 압축본 정리.
+
+아래는 이전 버전 검증 기록입니다.
+
+# 이전 아이콘 및 프리셋 표 검증
 
 ## 아이콘
 

@@ -33,7 +33,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name='NH3SensorAnalyzer',
-    icon='assets/app.ico',
+    icon='assets/NH3SensorAnalyzer_Flangi_Final.ico',
     version='packaging/version_info.txt',
     debug=False,
     bootloader_ignore_signals=False,
