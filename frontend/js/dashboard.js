@@ -32,7 +32,6 @@ const whiteToggle=$('crWhiteEnabled')?.closest('label');if(whiteToggle)roiWhite.
 const roiCalibration=uiEl('div');roiCalibration.className='dashboardROIGroup';roiCalibration.append(uiEl('h3','보정 설정'));
 const calibrationSelect=$('calibrationMode'),calibrationRow=calibrationSelect.closest('.researchRow');if(calibrationRow)roiCalibration.append(calibrationRow);
 const calibrationFold=$('relativeStart').closest('details');if(calibrationFold)roiCalibration.append(calibrationFold);
-const legacyOption=uiEl('option','Legacy · White RGB를 200으로');legacyOption.value='legacy';calibrationSelect.append(legacyOption);
 roiCard.prepend(roiSensor,roiWhite,roiCalibration);
 function enableSelectedWhite(){if(!crWhiteValid())return;const box=$('crWhiteEnabled');if(!box.checked){box.checked=true;box.dispatchEvent(new Event('change',{bubbles:true}));}drawFrame();}
 const originalWhitePick=$('whiteSpongeButton').onclick;
@@ -40,22 +39,6 @@ $('whiteSpongeButton').onclick=function(event){const before=whiteSpongeReference
 let whiteGesture=false;frame.addEventListener('pointerdown',()=>{whiteGesture=mode==='white'||whiteSpongeReference.picking;},{capture:true});
 frame.addEventListener('pointerup',()=>{if(whiteGesture)requestAnimationFrame(()=>{if(crWhiteValid())enableSelectedWhite();});whiteGesture=false;});
 const oldWhiteToggle=$('crWhiteEnabled').onchange;$('crWhiteEnabled').onchange=function(e){if(this.checked&&!crWhiteValid()){this.checked=false;status('먼저 흰색 기준 영역을 직접 지정하세요.',true);return;}return oldWhiteToggle.call(this,e);};
-// Expose the ALREADY computed cal_* path; no calibration equation is rewritten.
-let dashboardLegacyPreferred=false;
-const dashboardPolicyBase=crPolicy;crPolicy=function(){
- if(!dashboardLegacyPreferred)return dashboardPolicyBase();
- const pending=!rows.length||rows===crStartingRows,available=pending?crWhiteEnabled():crHasMode('legacy')&&(imported||crWhiteEnabled());
- return {requested:'legacy',effective:available?'legacy':'raw',state:available?'legacy_selected':'raw_fallback',reason:available?'Legacy · 기존 픽셀별 RGB × 200 / 현재 White 사용':'Legacy 보정값 없음 — Raw 분석 적용'};
-};
-const dashboardApplyPolicyBase=crApplyPolicy;crApplyPolicy=function(){const p=dashboardApplyPolicyBase();calibrationSelect.hidden=false;calibrationSelect.value=p.effective;return p;};
-const dashboardSetModeBase=researchSetMode;researchSetMode=function(selected){
- if(busy){crApplyPolicy();return;}
- const wasLegacy=dashboardLegacyPreferred;dashboardLegacyPreferred=selected==='legacy';
- if(selected!=='legacy'){if(wasLegacy)researchCalibration.mode='legacy';return dashboardSetModeBase(selected);}
- crApplyPolicy();nativeView.reference=null;nativeView.source=null;nativeReferenceRows=null;nativeInvalidateReport();
- if(rows.length&&totalSelected(weights))nativeRefresh();else{researchRefreshCalibration();syncNativeControls();}refresh();
-};
-const dashboardModeLabelBase=researchModeLabel;researchModeLabel=function(mode=crApplyPolicy().effective){return mode==='legacy'?'Legacy · White 기준 200':dashboardModeLabelBase(mode);};
 // Keep native channel/reference controls accessible without crowding the six weights.
 const nativeRow=$('nativeChannel').closest('.nativeViewRow');
 const nativeReference=metricCard.querySelector('.nativeReference');
@@ -120,8 +103,8 @@ function refresh(){
  if(!meanCache)$('dashSummaryWeights').textContent='ROI 측정 전';else showMean();requestMean();
  $('dashSummaryTarget').textContent=sensor.length>=3?'클릭한 스펀지 · 1센서':'ROI 미설정';
  const configured=crWhiteValid(),enabled=crWhiteEnabled(),relative=crPolicy().effective==='relative';
- const effective=crPolicy().effective,whiteKind=!configured?'미설정':globalThis.whiteSpongeReference?.selected?'흰 스펀지 · 고정 내부 ROI':'배경 사각형 · 지정됨';
- $('dashSummaryWhite').textContent=!configured?'미설정 · Raw':!enabled?'미적용 · Raw':rows.length?(effective==='raw'?'Raw · 보정 미적용':researchModeLabel(effective)+' 적용'):whiteKind+' · 추출 전';
+ const policy=crPolicy(),effective=policy.effective,whiteKind=!configured?'미설정':globalThis.whiteSpongeReference?.selected?'흰 스펀지 · 고정 내부 ROI':'배경 사각형 · 지정됨';
+ $('dashSummaryWhite').textContent=enabled&&policy.state==='pending'?researchModeLabel(effective)+' · 준비 중':!configured?'미설정 · Raw':!enabled?'미적용 · Raw':rows.length?(effective==='raw'?'Raw · 보정 미적용':researchModeLabel(effective)+' 적용'):whiteKind+' · 추출 전';
  if($('dashWhiteState'))$('dashWhiteState').textContent=(enabled?'사용: ':'미사용: ')+whiteKind;
  if($('dashSummaryDetail'))$('dashSummaryDetail').textContent='센서 ROI: '+(sensor.length>=3?'지정됨':'미설정')+' · 기준 종류: '+(enabled?whiteKind:'미사용')+' · 보정: '+researchModeLabel(effective)+' · '+(busy?'분석 중':rows.length?rows.length+'개 표본':'미분석');
  const done=[files.length>0||imported,touched.has(2),!!(cxCache?.selected?.ids?.length>=25),!!totalSelected(weights),$('rank').children.length>0,rows.length>0,false];
@@ -135,13 +118,6 @@ const fullscreenTarget=shell.querySelector('.dashboardVideo');$('dashFullscreen'
 const help=uiEl('dialog');help.id='dashboardHelp';help.innerHTML='<div class="helpTop"><h2>NH₃ Sensor Analysis 사용 안내</h2><button id="dashHelpClose" aria-label="닫기">×</button></div><p>1. 원본 영상을 선택하고 순서를 확인합니다.</p><p>2. FPS·실험 시각·초기 White 구간을 설정합니다.</p><p>3. 스펀지 클릭 선택을 누르고 분석할 스펀지 중앙을 클릭합니다. White Reference는 별도로 지정합니다.</p><p>4. ROI 단계에서 색상을 추출한 뒤 분석 지표를 선택합니다.</p><p>5–7. 실제 데이터로 지표를 비교하고 결과·품질을 확인한 뒤 CSV·Excel·ZIP·보고서를 저장합니다.</p><p>메뉴를 전환해도 영상·ROI·분석값은 유지됩니다. 상세 설정은 각 단계의 접기/펼치기에 있습니다.</p><p class="hint">지원 시 GPU로 읽으며 CPU 모드도 선택할 수 있습니다. 디코더별 픽셀 차이는 설정에 기록합니다. 이 프로그램은 화면에 보이는 스펀지 중 하나를 분석합니다.</p>';
 document.body.append(help);$('dashHelpClose').onclick=()=>help.close();$('dashHelp').onclick=()=>help.showModal();$('dashStepHelp').onclick=()=>help.showModal();$('dashSettings').onclick=()=>setStep(2);
 const detail=uiEl('details');detail.className='summaryDetails';detail.append(uiEl('summary','ROI·보정·진행 상태 자세히'));const detailText=uiEl('p');detailText.id='dashSummaryDetail';detail.append(detailText);shell.querySelector('.dashboardSummary').append(detail);
-const dashboardConfigBase=config;config=function(){const c=dashboardConfigBase();if(dashboardLegacyPreferred)c.calibration_preference='legacy';return c;};
-const dashboardSettingsImport=$('researchSettingsFile').onchange;
-$('researchSettingsFile').onchange=async function(e){
- let selected=null;try{const data=JSON.parse(await e.target.files?.[0]?.text());selected=data.analysis||data.settings?.analysis;}catch{}
- dashboardLegacyPreferred=false;await dashboardSettingsImport.call(this,e);
- if(selected&&(selected.calibration_preference==='legacy'||selected.calibration_mode==='legacy')&&!$('status').classList.contains('error')){dashboardLegacyPreferred=true;crApplyPolicy();if(rows.length)nativeRefresh();}refresh();
-};
 // Keep axis labels readable at every viewport without touching curve values.
 const dashboardPlotBase=plot;plot=function(points){
  const canvas=$('plot'),ctx=canvas.getContext('2d'),fill=ctx.fillText,sx=canvas.clientWidth/canvas.width,sy=canvas.clientHeight/canvas.height;

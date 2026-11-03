@@ -74,7 +74,26 @@ rankBase=function(c=config()){
  return [...base,...previous].sort((a,b)=>(b.score??-Infinity)-(a.score??-Infinity));
 };
 const researchOriginalApply=applyCandidateMetric;
-rank=function(){let c=config(),groups=[...new Set(c.cycle_plan.map(r=>r.concentration_ppm))];return groups.length>1?groups.flatMap(ppm=>rankBase({...c,cycle_plan:c.cycle_plan.filter(r=>r.concentration_ppm===ppm)}).map(r=>({...r,concentration_ppm:ppm}))):rankBase(c);};
+function researchCandidateKey(r){return (r.research_channel?'channel:'+r.research_channel:'mix:'+(r.metric_code||''))+':'+r.weights.map(x=>Number(x.toFixed(8))).join(',');}
+rank=function(){
+ const c=config(),groups=[...new Set(c.cycle_plan.map(r=>r.concentration_ppm))];
+ if(groups.length<=1)return rankBase(c);
+ const merged=new Map();
+ for(const ppm of groups)for(const item of rankBase({...c,cycle_plan:c.cycle_plan.filter(r=>r.concentration_ppm===ppm)})){
+  const key=researchCandidateKey(item);if(!merged.has(key))merged.set(key,{...item,per_concentration:[]});
+  merged.get(key).per_concentration.push({...item,concentration_ppm:ppm});
+ }
+ const average=(items,key)=>{const values=items.map(r=>r[key]).filter(Number.isFinite);return values.length?mean(values):null;};
+ return [...merged.values()].map(r=>{
+  const parts=r.per_concentration,valid=parts.filter(x=>Number.isFinite(x.score));
+  const result={...r,concentration_ppm:null,ranking_scope:'all_concentrations',total_concentrations:groups.length,valid_concentrations:valid.length,
+   score:valid.length?valid.reduce((sum,x)=>sum+x.score,0)/groups.length:null,
+   complete_cycles:parts.reduce((sum,x)=>sum+x.complete_cycles,0),cycle_results:parts.flatMap(x=>x.cycle_results||[]).map(item=>{const index=c.cycle_plan.findIndex(p=>p.gas_on_s===item.gas_on_s);return {...item,cycle:index>=0?index+1:item.cycle};}).sort((a,b)=>a.gas_on_s-b.gas_on_s),
+   selection_reason:'전체 농도 통합 · 농도별 기존 점수의 동일 비중 평균. 평가 불가 농도는 순위 점수에 0으로 반영하며 측정값을 채우지는 않습니다. 서로 다른 농도 사이의 CV는 계산하지 않습니다.'};
+  for(const key of ['mean_abs_change','mean_response_t90_s','mean_recovery_time_s','mean_recovery_fraction','mean_signal_to_sd','baseline_noise_mean','mean_baseline','mean_end_value','mean_change','baseline_drift','change_cv'])result[key]=average(parts,key);
+  return result;
+ }).sort((a,b)=>(b.score??-Infinity)-(a.score??-Infinity));
+};
 visibleCandidates=function(candidates){let groups=[...new Set(candidates.map(r=>r.concentration_ppm))];return groups.flatMap(ppm=>{let list=candidates.filter(r=>r.concentration_ppm===ppm),extra=0;return list.filter(r=>r.research_channel||r.metric_code==='user_combination'||extra++<3);});};
 applyCandidateMetric=async function(r){if(r.research_channel){nativeSelectChannel(r.research_channel);status('선택 지표 반영: '+r.name);return;}return researchOriginalApply(r);};
 nativeSelectChannel=function(channel){if(!researchSpecial[channel])return researchOriginalSelect(channel);if(nativeView.channel==='combination')nativeMixWeights=weights.slice();nativeView.channel=channel;nativeView.basis='actual';weights=researchMetricWeights(channel);nativeBaseSliders();nativeRefresh();};
@@ -160,7 +179,7 @@ function researchInstall(){
  let resultNote=uiEl('p',undefined,'researchResultNote');resultNote.id='researchResultNote';resultNote.hidden=true;$('cycleTable').after(resultNote);
  let ex=uiEl('div',undefined,'researchExport');ex.innerHTML='<select id="researchExportKind" aria-label="발표용 저장 항목"><option value="brightness">Brightness CSV · PPT/Origin</option><option value="raw">Raw RGB/HSV CSV</option><option value="cal">선택 보정 RGB/HSV CSV</option><option value="png">Brightness 그래프 PNG</option></select><button id="researchDownload">선택 항목 저장</button>';$('export').closest('section').append(ex);$('researchDownload').onclick=researchDownload;
  let settingsFold=uiEl('details',undefined,'researchFold');settingsFold.innerHTML='<summary>실험 설정 JSON 불러오기</summary><input id="researchSettingsFile" type="file" accept=".json"><p class="researchNote">저장한 농도·시각·ROI·평균 구간·지표·보정 및 검토 기록을 복원합니다. 기본 프리셋으로 덮어쓰지 않습니다.</p>';ex.after(settingsFold);$('researchSettingsFile').onchange=researchImportSettings;
- let score=[...document.querySelectorAll('details')].find(x=>x.querySelector(':scope > summary')?.textContent==='추천 점수 정의');if(score){let p=score.querySelector('p');if(p)p.textContent='노이즈 하한 = max(지표 분해능/√12, 관측 단계 MAD/√2). SNR = |Δ|/max(SD, 하한). 점수는 SNR/(1+SNR), 지표 범위로 나눈 변화폭, 동일 농도 CV, 주입·회복 구간 대비 도달 시간을 사용합니다. 반응 크기/안정성/속도 기준에 따라 비중이 달라집니다. 미도달 시간은 점수에서 해당 구간 길이를 사용하며, 표시 결과값을 채우지 않습니다. 3회차 자료의 탐색 점수이며 최적 지표의 확정값이 아닙니다.';}
+ let score=[...document.querySelectorAll('details')].find(x=>x.querySelector(':scope > summary')?.textContent==='추천 점수 정의');if(score){let p=score.querySelector('p');if(p)p.textContent='노이즈 하한 = max(지표 분해능/√12, 관측 단계 MAD/√2). SNR = |Δ|/max(SD, 하한). 점수는 SNR/(1+SNR), 지표 범위로 나눈 변화폭, 동일 농도 CV, 주입·회복 구간 대비 도달 시간을 사용합니다. 반응 크기/안정성/속도 기준에 따라 비중이 달라집니다. 미도달 시간은 점수에서 해당 구간 길이를 사용하며, 표시 결과값을 채우지 않습니다. 전체 순위는 농도별 점수를 동일 비중으로 합산합니다. 농도가 다른 회차 사이의 CV는 계산하지 않습니다.';}
  const csvHandler=$('csvFile').onchange;$('csvFile').onchange=async e=>{let f=e.target.files?.[0];if(!f)return;try{let data=parseCSV(await f.text()),first=data[0];researchStoredCalibrationMode=researchModes[first?.calibration_mode]?first.calibration_mode:null;if(researchStoredCalibrationMode&&data.some(r=>r.calibration_mode!==researchStoredCalibrationMode))throw Error('서로 다른 보정 방식이 섞인 CSV는 분리해서 불러오세요.');researchCalibration.mode=researchStoredCalibrationMode||'legacy';$('calibrationMode').value=researchCalibration.mode;researchCalibration.white_baseline=null;researchCalibration.samples=0;researchCalibration.warnings=[];await csvHandler(e);if(first?.relative_baseline_R&&first?.relative_baseline_G&&first?.relative_baseline_B){researchCalibration.white_baseline=['R','G','B'].map(k=>first['relative_baseline_'+k]);}researchRefreshCalibration();syncNativeControls();}catch(err){status(err.message,true);}};
  researchApplyPreset();clearSelectedResult();$('rank').replaceChildren();$('rankNote').textContent='색상 추출 또는 CSV 불러오기 후 단일·혼합 지표를 비교하세요.';if($('warnings'))$('warnings').textContent='';$('qualityAnomalies').replaceChildren();$('qualitySummary').textContent='추출 후 조명 안정성과 선택 지표의 큰 튐을 확인합니다.';if($('videoDurationLabel'))$('videoDurationLabel').textContent='';if($('previewLabel'))$('previewLabel').textContent='0.0초';nativeView.channel='V';nativeView.basis='actual';weights=[0,0,0,0,0,1];nativeBaseSliders();syncNativeControls();renderCombination(weights);
 }

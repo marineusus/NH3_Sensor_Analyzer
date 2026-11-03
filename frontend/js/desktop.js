@@ -1,5 +1,5 @@
 /* Native video transport. ROI geometry and time-series analysis stay in their UI modules. */
-let desktopCurrentFile=null,desktopJob=null;let desktopPreviewState={valid:false,error:null,file:null,time:0};let desktopPreviewFallback='';
+let desktopCurrentFile=null,desktopJob=null,desktopJobState='idle';let desktopPreviewState={valid:false,error:null,file:null,time:0};let desktopPreviewFallback='';
 const desktopReady=new Promise(resolve=>{
  if(window.pywebview?.api)resolve();else window.addEventListener('pywebviewready',resolve,{once:true});
 });
@@ -80,14 +80,14 @@ async function desktopExtract(){
  $('start').disabled=true;$('desktopOpen').disabled=true;
  try{
   desktopJob=await desktopCall('start_analysis',{files:files.map(f=>f.id),roi:payloadROI,config:c});
-  started=true;busy=true;cancel=false;rows=[];latest=null;uiDataContext=null;uiDataMeta=[];imported=false;
+  started=true;busy=true;desktopJobState='running';cancel=false;rows=[];latest=null;uiDataContext=null;uiDataMeta=[];imported=false;
   researchStoredCalibrationMode=null;crImportedAvailability=null;extractionSettings=structuredClone(c);
   let cursor=0,last=null;
   for(;;){
    if(cancel)await desktopCall('cancel_analysis');
-   const p=await desktopCall('poll_analysis',desktopJob,cursor);cursor=p.cursor;last=p;
+   const p=await desktopCall('poll_analysis',desktopJob,cursor);cursor=p.cursor;last=p;desktopJobState=p.state;
    for(const row of p.rows)rows.push(row);
-   if(p.calibration){researchCalibration=p.calibration;extractionSettings.research_calibration=structuredClone(p.calibration);}
+   if(p.calibration){researchCalibration=p.calibration;extractionSettings.research_calibration=structuredClone(p.calibration);crApplyPolicy();}
    if(p.file_meta)fileMeta=p.file_meta;
    if(p.progress)drawProgress({...p.progress,frames:rows.length});
    status((p.state==='running'?'OpenCV 색상 추출 중':'OpenCV 결과 정리 중')+' · '+rows.length.toLocaleString()+'개 · '+p.elapsed_s.toFixed(1)+'초');
@@ -103,7 +103,7 @@ async function desktopExtract(){
    status('완료 · '+rows.length.toLocaleString()+'개 표본 · '+last.elapsed_s.toFixed(1)+'초 · 원본 변경 없음');
   }else{cancel=true;status((last.error||'추출 중지')+' · '+rows.length+'개 표본 보존 · 부분 결과를 내보낼 수 있습니다.',last.state==='error');}
  }catch(e){status(e.message,true);if(started){cancel=true;await desktopCall('cancel_analysis');}}
- finally{busy=false;$('start').disabled=false;$('desktopOpen').disabled=false;desktopJob=null;}
+ finally{busy=false;desktopJobState='idle';crApplyPolicy();$('start').disabled=false;$('desktopOpen').disabled=false;desktopJob=null;}
 }
 cancelAnalysis=function(){cancel=true;desktopCall('cancel_analysis').catch(e=>status(e.message,true));status('중지 요청 · 현재 프레임 후 표본을 보존합니다.');};
 
