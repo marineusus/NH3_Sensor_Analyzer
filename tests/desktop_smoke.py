@@ -73,6 +73,12 @@ excel_bytes:excelBytes(d).length,zip_bytes:zip([['settings.json',JSON.stringify(
 baseline=ROOT/'tests/fixtures/analysis-baseline.json'
 if baseline.exists() and not result.get('failure'):
     expected=json.loads(baseline.read_text(encoding='utf-8'))
+    if os.environ.get('NH3_SMOKE_VIDEO'):
+        # The lossless fixture preserves the Windows reference pixels. Only its
+        # filename differs; no numerical tolerance or expected measurement changes.
+        expected['first']['video']=clip.name
+        expected['last']['video']=clip.name
+        expected['geometry']['reference_frame']['file']=clip.name
     for key,value in expected.items():
         if result.get(key)!=value:
             result['failure']='Numerical/UI baseline mismatch: '+key

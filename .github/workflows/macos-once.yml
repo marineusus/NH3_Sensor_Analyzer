@@ -42,6 +42,7 @@ jobs:
         shell: bash
         env:
           PYWEBVIEW_LOG: debug
+          NH3_SMOKE_VIDEO: tests/fixtures/synthetic.nut
         run: python tests/desktop_smoke.py > mac-validation/native-smoke.json
       - name: Package app (preserve permissions and symlinks)
         shell: bash
