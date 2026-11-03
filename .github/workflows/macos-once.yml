@@ -22,18 +22,19 @@ jobs:
         run: python -m pip install -r requirements-build.txt
       - name: Analysis and platform regression tests
         run: python -m unittest discover -s tests -v
-      - name: Native Cocoa integration (preview, extraction, ROI, calibration, exports)
-        shell: bash
-        run: |
-          mkdir -p mac-validation
-          python tests/desktop_smoke.py > mac-validation/native-smoke.json
       - name: Build native app with the approved icon
         run: |
+          mkdir -p mac-validation
           python packaging/make_mac_icon.py
           python -m PyInstaller --noconfirm --clean NH3SensorAnalyzer-macOS.spec
           codesign --verify --deep --strict dist/NH3SensorAnalyzer.app
       - name: Verify frozen engine, resources, and app startup
         run: python packaging/verify_mac_bundle.py
+      - name: Native Cocoa integration (preview, extraction, ROI, calibration, exports)
+        shell: bash
+        env:
+          PYWEBVIEW_LOG: debug
+        run: python tests/desktop_smoke.py > mac-validation/native-smoke.json
       - name: Package app (preserve permissions and symlinks)
         shell: bash
         run: |

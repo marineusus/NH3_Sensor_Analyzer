@@ -6,7 +6,7 @@
 - `AppleSilicon`: M1/M2/M3/M4 등 Apple 칩 맥북.
 - 이번 배포는 팀원의 M시리즈 맥북용입니다. Intel 버전은 만들지 않습니다.
 - 해당 ZIP을 풀고 `NH3SensorAnalyzer.app`을 응용 프로그램 폴더로 옮겨 실행합니다. Python, Homebrew, WebView2 설치는 필요 없습니다.
-- Apple Developer ID 서명·공증은 없는 개인/팀 배포본입니다. 신뢰하는 배포본임을 확인한 뒤 차단된다면 시스템 설정 → 개인정보 보호 및 보안 → 확인 없이 열기를 사용합니다. macOS 보안 기능 전체를 끄지 마세요. [Apple 안내](https://support.apple.com/ko-kr/102445)
+- Apple Developer ID 서명·공증은 없는 개인/팀 배포본입니다. 신뢰하는 배포본임을 확인한 뒤 차단된다면 시스템 설정 → 개인정보 보호 및 보안 → 그래도 열기를 사용합니다. macOS 보안 기능 전체를 끄지 마세요. [Apple 안내](https://support.apple.com/ko-kr/102445)
 - 로그는 `~/Library/Logs/NH3SensorAnalyzer/app.log`에 기록합니다.
 - Mac은 Cocoa/WKWebView, Windows는 기존 Edge WebView2를 사용합니다. Mac의 영상 읽기는 같은 PyAV/FFmpeg 소프트웨어 경로이며 Windows D3D11 GPU 가속은 사용하지 않습니다.
 

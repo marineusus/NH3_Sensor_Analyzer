@@ -27,6 +27,8 @@ with tempfile.TemporaryDirectory(prefix='nh3-smoke-') as temp:
     api._window=window
     def run():
         try:
+            if not window.events.loaded.wait(45):
+                raise AssertionError('Native webview did not finish loading in 45 seconds')
             # Loaded event occurs before the API handshake on some WebView2 versions.
             for _ in range(100):
                 if window.evaluate_js("Boolean(window.pywebview?.api?.start_analysis && typeof desktopExtract==='function' && window.dashboardUI && document.readyState==='complete' && !document.documentElement.classList.contains('nh3-booting'))"):
@@ -59,6 +61,11 @@ excel_bytes:excelBytes(d).length,zip_bytes:zip([['settings.json',JSON.stringify(
             result.update(value)
         except Exception as error:
             result['failure']=str(error)
+            result['native_events']={name:getattr(window.events,name).is_set() for name in ['shown','before_load','loaded','_pywebviewready']}
+            result['native_url']=window.real_url
+            if sys.platform == 'darwin':
+                import subprocess
+                subprocess.run(['screencapture','-x','mac-validation/startup-failure.png'],check=False)
         finally:
             api.close();window.destroy()
     window.events.loaded+=lambda:None
