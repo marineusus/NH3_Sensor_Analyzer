@@ -29,9 +29,11 @@ with tempfile.TemporaryDirectory(prefix='nh3-smoke-') as temp:
         try:
             # Loaded event occurs before the API handshake on some WebView2 versions.
             for _ in range(100):
-                if window.evaluate_js("Boolean(window.pywebview?.api?.start_analysis && typeof desktopExtract==='function' && window.dashboardUI && document.readyState==='complete')"):
+                if window.evaluate_js("Boolean(window.pywebview?.api?.start_analysis && typeof desktopExtract==='function' && window.dashboardUI && document.readyState==='complete' && !document.documentElement.classList.contains('nh3-booting'))"):
                     break
                 time.sleep(.1)
+            if not window.evaluate_js("Boolean(window.dashboardUI && !document.documentElement.classList.contains('nh3-booting'))"):
+                raise AssertionError('Dashboard initialization failed')
             setup='''
 files=FILES;fileMeta=files.map(f=>({...f}));listFiles();
 sensor=[[.33,.24],[.65,.24],[.65,.65],[.33,.65]];white=[.06,.10,.08,.20];$('crWhiteEnabled').checked=true;
@@ -40,10 +42,11 @@ cyclePlan=[{concentration_ppm:10,gas_on_s:3,gas_off_s:5,recovery_end_s:8}];
 $('relativeStart').value=0;$('relativeEnd').value=2;estimatedFirst=null;timingUnresolved=false;
 window.smokeErrors=[];window.addEventListener('error',e=>smokeErrors.push(e.message));
 window.smokeDone=false;
-(async()=>{try{await showPreview();await start();
+(async()=>{try{await showPreview();const previewColor=await desktopSample(buildROI(config()));await start();await $('nativeReadScene').onclick();const nativeReferenceOK=nativeView.reference?.every(Number.isFinite)===true;
+await cxVerifyHue();const nativeHueOK=$('cxHueCheck').textContent.includes('픽셀 CRC 일치');
 const c=config();const a=assess(weights,c);const g=cxMetadata(cxGeometry(c));
 const d=exportData(),info=readReportInfo();info.photos=false;const pages=buildReportPages(a,rank(),checkDataQuality(a),calculateCalibration(a),info,[]);const photo=await captureSensorPhoto(rows[0]);await openReportSettings();$('reportPhotos').checked=false;await makeReportPreview();const reportPreviewReady=!$('reportPreview').hidden&&$('reportPreview').contentDocument?.body?.children.length>0&&$('reportPreview').contentDocument.fonts.status==='loaded';if($('reportDialog').open)$('reportDialog').close();
-window.smokeResult={canvas_font_round:$('plot').getContext('2d').font.includes('DashboardRound'),report_preview_ready:reportPreviewReady,report_embedded_fonts:reportFontCSS.split('data:font/ttf;base64,').length-1,report_pages:pages.length,photo_ok:!!photo,status:$('status').textContent,rows:rows.length,first:rows[0],last:rows.at(-1),calibration:researchCalibration,
+window.smokeResult={native_preview_sample_ok:Number.isFinite(previewColor.raw_H_deg),native_reference_ok:nativeReferenceOK,native_hue_ok:nativeHueOK,canvas_font_round:$('plot').getContext('2d').font.includes('DashboardRound'),report_preview_ready:reportPreviewReady,report_embedded_fonts:reportFontCSS.split('data:font/ttf;base64,').length-1,report_pages:pages.length,photo_ok:!!photo,status:$('status').textContent,rows:rows.length,first:rows[0],last:rows.at(-1),calibration:researchCalibration,
 cycles:a.cycles,geometry:g,raw:researchRawRecords().length,relative:crRelativeRecords().length,
 excel_bytes:excelBytes(d).length,zip_bytes:zip([['settings.json',JSON.stringify(d.settings)],['colors.csv',csv(d.colors)]]).length,errors:smokeErrors};
 }catch(e){window.smokeResult={failure:e.stack};}finally{window.smokeDone=true;}})();
@@ -68,7 +71,5 @@ if baseline.exists() and not result.get('failure'):
             result['failure']='Numerical/UI baseline mismatch: '+key
             break
 print(json.dumps(result,ensure_ascii=False,indent=2))
-if not result.get('canvas_font_round') or result.get('failure') or result.get('errors') or result.get('rows')!=16 or result.get('excel_bytes',0)<1000 or result.get('report_pages',0)<1 or result.get('report_embedded_fonts')!=2 or not result.get('photo_ok') or not result.get('report_preview_ready'):
+if not all(result.get(k) for k in ['native_preview_sample_ok','native_reference_ok','native_hue_ok']) or not result.get('canvas_font_round') or result.get('failure') or result.get('errors') or result.get('rows')!=16 or result.get('excel_bytes',0)<1000 or result.get('report_pages',0)<1 or result.get('report_embedded_fonts')!=2 or not result.get('photo_ok') or not result.get('report_preview_ready'):
     raise SystemExit(1)
-
-

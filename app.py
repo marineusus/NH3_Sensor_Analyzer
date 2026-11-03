@@ -13,7 +13,7 @@ from analyzer import (VideoReader, analyze_video, prepare_roi, sample, png_base6
 from detection import detect_sponges, select_sponge
 
 ROOT = Path(__file__).resolve().parent
-APP_VERSION = '1.4.1'
+APP_VERSION = '1.4.2'
 
 
 class Api:
@@ -25,6 +25,7 @@ class Api:
         self._preview_lock = threading.Lock()
         self._reader = None
         self._reader_id = None
+        self._preview_frame = None
         self._decoder_mode = 'auto'
 
     def _register(self, paths):
@@ -65,6 +66,7 @@ class Api:
                 if self._reader:
                     self._reader.close()
                 self._reader=None;self._reader_id=None;self._decoder_mode=mode
+                self._preview_frame=None
         return mode
 
     def frame(self, fid, target):
@@ -74,7 +76,24 @@ class Api:
                     self._reader.close()
                 self._reader=VideoReader(self._files[fid],self._decoder_mode);self._reader_id=fid
             image,ts,source=self._reader.read(target)
+            self._preview_frame=(fid,ts,image)
             return dict(image=png_base64(image),time=ts,source=source)
+
+    def sample_frame(self, fid, target, roi, config):
+        """Use the extraction equations for live ROI colors and hue verification."""
+        roi=prepare_roi(roi)
+        with self._preview_lock:
+            cached=self._preview_frame
+            if cached is not None and cached[0]==fid and abs(cached[1]-target)<1e-6:
+                frame=cached[2]
+            else:
+                reader=VideoReader(self._files[fid],self._decoder_mode)
+                try:
+                    frame,_,_=reader.read(target)
+                finally:
+                    reader.close()
+            return sample(frame,roi,(config.get('white_baseline') or {}).get('white_baseline'),
+                          config=config)
 
     def detect(self, fid, target, search=None):
         reader=VideoReader(self._files[fid],self._decoder_mode)

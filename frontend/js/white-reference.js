@@ -82,9 +82,9 @@ function findWhiteSpongeReference(source,sensorPoints=[]){
 
 /* Separate, fixed White-sponge reference; existing RGB gains and HSV equations are unchanged. */
 (function(){
-  const state={selected:null,pending:[],picking:false},referenceMasks=new WeakMap();
+  const state={selected:null,pending:[],picking:false};
   globalThis.whiteSpongeReference=state;
-  const originalStats=researchWhiteStats,originalROI=buildROI,originalConfig=config;
+  const originalROI=buildROI,originalConfig=config;
   const originalMode=setROIMode,originalDraw=drawFrame;
   const frame=$('frame'),oldDown=frame.onpointerdown,oldMove=frame.onpointermove,oldUp=frame.onpointerup;
   const backgroundButton=[...document.querySelector('.roiCard').querySelectorAll('button')].find(button=>button.textContent.trim()==='흰색 기준 드래그');
@@ -169,13 +169,7 @@ function findWhiteSpongeReference(source,sensorPoints=[]){
     if(!state.selected||c.white_enabled===false)return originalROI(c);
     const selected=state.selected;checkOverlap(selected,c.sensor);
     const roi=originalROI({...c,white_enabled:false});roi.rect=selected.rect.slice();
-    referenceMasks.set(roi.rect,selected.ids);roi.white_reference=structuredClone(selected.metadata);return roi;
-  };
-  researchWhiteStats=function(data,rect){
-    const ids=referenceMasks.get(rect);if(!ids)return originalStats(data,rect);
-    const values=[0,0,0];let sat=0;
-    for(const id of ids)for(let k=0;k<3;k++){const value=data[id*4+k];values[k]+=value;if(value>=250)sat++;}
-    return {rgb:values.map(value=>value/ids.length),saturated_fraction:sat/(3*ids.length)};
+    roi.white_reference=structuredClone(selected.metadata);return roi;
   };
   // Keep the new reference in the existing settings export/import workflow.
   const settingsInput=$('researchSettingsFile'),importSettings=settingsInput.onchange;

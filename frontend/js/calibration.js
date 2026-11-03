@@ -31,7 +31,6 @@ function crPolicy(){
 function crWhiteValid(rect=white){return Array.isArray(rect)&&rect.length===4&&rect.every(Number.isFinite)&&rect[0]>=0&&rect[1]>=0&&rect[2]*960>=4&&rect[3]*540>=4&&(rect[0]+rect[2])<=1&&(rect[1]+rect[3])<=1;}
 function crWhiteEnabled(){return $('crWhiteEnabled')?.checked!==false&&crWhiteValid();}
 function crApplyPolicy(){const p=crPolicy();researchCalibration.mode=p.effective;if($('calibrationMode')){$('calibrationMode').value=p.effective==='legacy'?'raw':p.effective;$('calibrationMode').hidden=p.effective==='legacy';}if($('crCalibrationState'))$('crCalibrationState').textContent=p.reason;return p;}
-researchValue=function(r,key,mode=researchCalibration.mode){return crOriginalValue(r,key,mode);};
 config=function(){const p=crApplyPolicy(),c=crOriginalConfig();c.calibration_mode=p.effective;c.calibration_preference=crPreference;c.calibration_policy=p;c.white_enabled=crWhiteEnabled();c.white_baseline.mode=p.effective;return c;};
 researchSetMode=function(mode){
  if(busy){crApplyPolicy();return;}if(!['raw','relative'].includes(mode))return;
@@ -57,8 +56,6 @@ const crBuildROI=buildROI;
 buildROI=function(c){if(c.white_enabled!==false&&crWhiteValid(c.white))return crBuildROI(c);const g=cxGeometry(c);return {ids:g.selected.ids.slice(),rect:[0,0,0,0],geometry:cxMetadata(g),variants:Object.entries(g.variants).map(([key,v])=>({key,ids_runs:cxRuns(v.ids),pixel_count:v.ids.length,percent:v.percent,shape:v.shape,angle_deg:v.rectangle?.angle_deg??null,rectangle:v.rectangle}))};};
 const crValidate=validate;
 validate=function(c){return crValidate(c.white_enabled===false?{...c,white:[0,0,0,0]}:c);};
-const crPrepareBaseline=researchPrepareWhiteBaseline;
-researchPrepareWhiteBaseline=async function(roi,c){if(c.white_enabled===false){researchStoredCalibrationMode=null;researchCalibration={...researchCalibration,white_baseline:null,samples:0,actual_start_s:null,actual_end_s:null,warnings:['White Reference 미설정 — Raw 분석 적용']};return;}return crPrepareBaseline(roi,c);};
 const crStart=start;
 start=async function(){const previousRows=rows,stored=researchStoredCalibrationMode,availability=crImportedAvailability;crStartingRows=previousRows;crImportedAvailability=null;researchStoredCalibrationMode=null;try{return await crStart();}finally{crStartingRows=null;if(rows===previousRows&&imported){researchStoredCalibrationMode=stored;crImportedAvailability=availability;}crApplyPolicy();}};
 const crCSVImport=$('csvFile').onchange;

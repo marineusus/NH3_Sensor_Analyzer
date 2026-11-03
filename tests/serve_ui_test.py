@@ -7,7 +7,7 @@ from http.server import ThreadingHTTPServer,SimpleHTTPRequestHandler
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from app import Api,ROOT
 api=Api();fixture=api._register([next(Path(sys.argv[1]).rglob('VID-0000.mp4'))]);token=secrets.token_hex(24)
-allowed={'set_decoder_mode','frame','select_sponge','detect','start_analysis','poll_analysis','cancel_analysis','responsive'}
+allowed={'set_decoder_mode','frame','sample_frame','select_sponge','detect','start_analysis','poll_analysis','cancel_analysis','responsive'}
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self,*args,**kwargs):super().__init__(*args,directory=str(ROOT/'frontend'),**kwargs)
     def log_message(self,*args):pass

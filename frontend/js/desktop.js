@@ -1,9 +1,15 @@
-/* Desktop transport only. Analytical functions and geometry remain in legacy files. */
-let desktopCurrentFile=null,desktopJob=null,desktopPreviewEpoch=0;let desktopPreviewState={valid:false,error:null,file:null,time:0};let desktopPreviewFallback='';
+/* Native video transport. ROI geometry and time-series analysis stay in their UI modules. */
+let desktopCurrentFile=null,desktopJob=null;let desktopPreviewState={valid:false,error:null,file:null,time:0};let desktopPreviewFallback='';
 const desktopReady=new Promise(resolve=>{
  if(window.pywebview?.api)resolve();else window.addEventListener('pywebviewready',resolve,{once:true});
 });
 async function desktopCall(method,...args){await desktopReady;return window.pywebview.api[method](...args);}
+
+async function desktopSample(roi,c=config()){
+ if(!desktopCurrentFile||!cxFrame)throw Error('영상 미리보기를 먼저 불러오세요.');
+ return desktopCall('sample_frame',desktopCurrentFile.id,cxFrame.time_s,
+  {ids_runs:roi.ids_runs||cxRuns(roi.ids),rect:roi.rect,white_reference:roi.white_reference},c);
+}
 
 loadVideo=async function(file){
  if(!file?.id)throw Error('OpenCV 영상 선택 버튼으로 원본 영상을 선택하세요.');
@@ -96,24 +102,6 @@ async function desktopExtract(){
  finally{busy=false;$('start').disabled=false;$('desktopOpen').disabled=false;desktopJob=null;}
 }
 cancelAnalysis=function(){cancel=true;desktopCall('cancel_analysis').catch(e=>status(e.message,true));status('중지 요청 · 현재 프레임 후 표본을 보존합니다.');};
-
-// Keep the legacy export's analytical values; describe the actual native reader.
-const desktopOriginalExport=exportData;
-exportData=function(){
- const d=desktopOriginalExport();
- if(rows.some(r=>r.timestamp_source==='ffmpeg_frame_pts')){
-  d.settings.source='Local original video; PyAV FFmpeg decoding + OpenCV resize';
-  d.settings.timing='Actual decoded frame PTS; requested_time_s is the sampling target. Timed zero-byte packets skipped; repeated real frames deduplicated. See video_metadata.sampling for gaps.';
- }
- return d;
-};
-
-// Existing responsive-mask UI already has a native-reader extension point.
-async function readerConnect(file){return {reader_id:file.id};}
-async function readerPost(action,p){
- if(action!=='responsive')throw Error('지원하지 않는 요청');
- return desktopCall('responsive',p.id,p.time,p.global_time,p.mode,p.excluded_times);
-}
 
 // One click chooses the sensor; no automatic selection of the other sponge.
 let desktopSelecting=false,desktopSelectionEpoch=0;

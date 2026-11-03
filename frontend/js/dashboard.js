@@ -62,31 +62,10 @@ const nativeReference=metricCard.querySelector('.nativeReference');
 const nativeFold=uiEl('details');nativeFold.className='dashboardAdvanced';nativeFold.append(uiEl('summary','Y축 성분·표시 방식·비교 기준색'));
 if(nativeRow)nativeFold.append(nativeRow);if($('nativeAxisHint'))nativeFold.append($('nativeAxisHint'));if(nativeReference)nativeFold.append(nativeReference);
 metricCard.append(nativeFold);
-const mixFold=metricCard.querySelector('.legacyMixFold');const tabs=uiEl('div');tabs.className='dashboardTabs';
-tabs.innerHTML='<button class="active" id="dashWeightsTab">가중치 설정</button><button id="dashPresetTab">프리셋</button>';
+const mixFold=metricCard.querySelector('.legacyMixFold');if(mixFold)mixFold.hidden=true;
 metricCard.querySelector(':scope>h2')?.remove();
-const description=uiEl('p','RGB / HSV 가중치를 조합하여 분석 지표를 설정합니다.','dashboardDescription');
-metricCard.prepend(description,tabs);
-const weightsArea=uiEl('div');weightsArea.id='dashboardWeightsArea';weightsArea.append($('sliders'));
-const formula=uiEl('div');formula.className='dashboardFormula';formula.innerHTML='<b>∑ 분석 지표 계산식</b><span id="dashFormula"></span>';
-const formulaNote=uiEl('p');formulaNote.id='dashFormulaNote';formulaNote.className='hint';
-const actions=uiEl('div');actions.className='dashboardMetricActions';actions.innerHTML='<button id="dashResetWeights">⟳ 초기화</button><button class="primary" id="dashApplyWeights">▶ 이 조합으로 결과 보기</button>';
-weightsArea.append(formula,formulaNote,actions);tabs.after(weightsArea);
-const presetArea=uiEl('div');presetArea.id='dashboardPresetArea';presetArea.hidden=true;
-const preset=uiEl('button','B−R 조합 적용');preset.onclick=()=>{applyBRPreset();setMetricTab(false);refresh();};presetArea.append(uiEl('p','기존 B−R 프리셋과 지표 JSON을 사용합니다.','hint'),preset);
-for(const [text,action]of [['지표 JSON 저장',()=>saveMetric()],['지표 JSON 불러오기',()=>$('metricFile').click()]]){const b=uiEl('button',text);b.onclick=action;presetArea.append(b);}
-weightsArea.after(presetArea);if(mixFold)mixFold.hidden=true;
-// The existing combination card remains available as an advanced explanation.
+const description=uiEl('p','현재 ROI 색상','dashboardDescription');metricCard.prepend(description);
 const mixDetail=uiEl('details');mixDetail.className='dashboardAdvanced';mixDetail.append(uiEl('summary','현재 지표의 정의·정규화'),$('combinationCard'));metricCard.append(mixDetail);
-$('dashResetWeights').onclick=()=>{weights=[-1,0,1,0,0,0];sliders();if(rows.length)evaluate().catch(e=>status(e.message,true));refresh();};
-$('dashApplyWeights').onclick=async()=>{try{nativeSelectChannel('combination');if(!rows.length){status('가중치를 적용했습니다. 먼저 색상을 추출하거나 CSV를 불러오세요.');refresh();return;}await evaluate();refresh();}catch(e){status(e.message,true);}};
-function setMetricTab(preset){weightsArea.hidden=preset;presetArea.hidden=!preset;$('dashWeightsTab').classList.toggle('active',!preset);$('dashPresetTab').classList.toggle('active',preset);}
-$('dashWeightsTab').onclick=()=>setMetricTab(false);$('dashPresetTab').onclick=()=>setMetricTab(true);
-function styleSliders(){const ranges=['0–255','0–255','0–255','0–360°','0–100%','0–100%'];[...$('sliders').children].forEach((row,i)=>{const label=row.querySelector('.channelLabel');if(label){if(label.querySelector('b').textContent!==ranges[i])label.querySelector('b').textContent=ranges[i];label.title=CHANNELS[i].label;}row.querySelector('input[type=range]')?.setAttribute('aria-label',names[i]+' 분석 가중치 −1~1');});}
-const originalSliders=sliders;sliders=function(...args){const value=originalSliders(...args);styleSliders();refresh();return value;};styleSliders();new MutationObserver(styleSliders).observe($('sliders'),{childList:true});
-// Primary UI reports measured ROI colors. Weight editors remain hidden solely
-// for original recommendation/import compatibility; no measurement is editable.
-tabs.hidden=true;weightsArea.hidden=true;presetArea.hidden=true;
 const colorPanel=uiEl('section');colorPanel.id='dashboardColorPanel';
 colorPanel.innerHTML='<div class="currentMeanTop"><span id="dashMeanSwatch" class="empty"></span><div><strong>현재 ROI 평균색</strong><p id="dashMeanBasis">ROI를 지정하면 실제 색상을 표시합니다.</p></div></div><div id="dashboardColorGauges"></div><p id="dashMeanValues" class="hint"></p>';
 const colorLimits=[255,255,255,360,100,100],colorRanges=['0–255','0–255','0–255','0–360°','0–100%','0–100%'];
@@ -98,18 +77,20 @@ const combinationOption=$('nativeChannel').querySelector('option[value="combinat
 if(nativeReference){nativeReference.querySelector('.nativeRefTop strong').textContent='비교 기준색 (고급)';nativeFold.querySelector('summary').textContent='비교 기준색 조정 · 원본 측정값 유지';}
 description.textContent='선택한 ROI의 실제 평균 RGB / HSV 값을 확인합니다.';
 $('dashSummaryWeights').previousElementSibling.textContent='현재 ROI · RGB / HSV';
-let meanTimer=null,meanKey='',meanCache=null;
+let meanTimer=null,meanKey='',meanPending='',meanCache=null,meanEpoch=0;
 function requestMean(){
- if(busy||sensor.length<3||!cxFrame||!image.width||!desktopPreviewState.valid){if(sensor.length<3||!desktopPreviewState.valid){meanCache=null;meanKey='';showMean();}return;}
+ if(busy||sensor.length<3||!cxFrame||!image.width||!desktopPreviewState.valid){if(sensor.length<3||!desktopPreviewState.valid){meanCache=null;meanKey='';meanPending='';meanEpoch++;clearTimeout(meanTimer);showMean();}return;}
  const key=JSON.stringify([cxFrame,sensor,cxSettings(),white,globalThis.whiteSpongeReference?.selected?.metadata.mask_runs,researchCalibration.white_baseline,crPolicy().effective]);
- if(key===meanKey)return;clearTimeout(meanTimer);meanTimer=setTimeout(()=>{
-  if(busy)return;
+ if(key===meanKey){meanEpoch++;meanPending='';clearTimeout(meanTimer);return;}
+ if(key===meanPending)return;const epoch=++meanEpoch;clearTimeout(meanTimer);meanTimer=setTimeout(async()=>{
+  if(busy)return;meanPending=key;
   try{const c=config(),g=cxGeometry(c);let record,prefix=c.calibration_mode==='legacy'?'cal':c.calibration_mode;
-   try{record=sample(buildROI(c));}catch{const raw=pixelStats(sx.getImageData(0,0,960,540).data,g.selected.ids,null);record=Object.fromEntries(Object.entries(raw).map(([k,v])=>['raw_'+k,v]));prefix='raw';}
+   try{record=await desktopSample(buildROI(c),c);}catch{record=await desktopSample({ids:g.selected.ids,rect:[0,0,0,0]},{...c,white_enabled:false});prefix='raw';}
+   if(epoch!==meanEpoch||busy)return;
    if(!['R','G','B','H_deg','S','V'].every(k=>Number.isFinite(record[prefix+'_'+k])))prefix='raw';
    const values=['R','G','B','H_deg','S','V'].map(k=>record[prefix+'_'+k]);if(values.some(v=>!Number.isFinite(v)))throw Error('현재 ROI 색상을 읽지 못했습니다.');values[4]*=100;values[5]*=100;
    meanCache={values,prefix,pixels:g.selected.ids.length,time:cxFrame.time_s};meanKey=key;showMean();
-  }catch(e){meanCache=null;showMean(e.message);}
+  }catch(e){if(epoch===meanEpoch){meanCache=null;showMean(e.message);}}finally{if(meanPending===key)meanPending='';}
  },100);
 }
 function showMean(error){
@@ -143,8 +124,6 @@ function refresh(){
  $('dashSummaryWhite').textContent=!configured?'미설정 · Raw':!enabled?'미적용 · Raw':rows.length?(effective==='raw'?'Raw · 보정 미적용':researchModeLabel(effective)+' 적용'):whiteKind+' · 추출 전';
  if($('dashWhiteState'))$('dashWhiteState').textContent=(enabled?'사용: ':'미사용: ')+whiteKind;
  if($('dashSummaryDetail'))$('dashSummaryDetail').textContent='센서 ROI: '+(sensor.length>=3?'지정됨':'미설정')+' · 기준 종류: '+(enabled?whiteKind:'미사용')+' · 보정: '+researchModeLabel(effective)+' · '+(busy?'분석 중':rows.length?rows.length+'개 표본':'미분석');
- const sum=weights.reduce((a,v)=>a+Math.abs(v),0),terms=weights.map((v,i)=>Math.abs(v)<1e-8?null:(v/sum).toFixed(2)+'·'+(i<3?names[i]+'/255':i===3?'cos(H−240°)':names[i])).filter(Boolean);
- $('dashFormula').textContent=sum?'I = '+terms.join(' + '):'가중치 미선택';$('dashFormula').title=$('dashFormula').textContent;$('dashFormulaNote').hidden=nativeView.channel==='combination';$('dashFormulaNote').textContent='조합식 미리보기입니다. 적용 버튼을 누르면 그래프에 반영됩니다.';
  const done=[files.length>0||imported,touched.has(2),!!(cxCache?.selected?.ids?.length>=25),!!totalSelected(weights),$('rank').children.length>0,rows.length>0,false];
  document.querySelectorAll('.stepButton').forEach((b,i)=>{b.querySelector('.stepCheck').textContent=done[i]?'✓':'';b.classList.toggle('complete',done[i]);});
 }
@@ -153,7 +132,7 @@ function refresh(){
 function fitVideo(){const box=$('dashboardViewport'),width=Math.max(1,Math.min(box.clientWidth,box.clientHeight*16/9));frame.style.width=width+'px';frame.style.height=width*9/16+'px';}
 new ResizeObserver(fitVideo).observe($('dashboardViewport'));
 const fullscreenTarget=shell.querySelector('.dashboardVideo');$('dashFullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await fullscreenTarget.requestFullscreen();}catch(e){status(e.message,true);}};
-const help=uiEl('dialog');help.id='dashboardHelp';help.innerHTML='<div class="helpTop"><h2>NH₃ Sensor Analysis 사용 안내</h2><button id="dashHelpClose" aria-label="닫기">×</button></div><p>1. 원본 영상을 선택하고 순서를 확인합니다.</p><p>2. FPS·실험 시각·초기 White 구간을 설정합니다.</p><p>3. 스펀지 클릭 선택을 누르고 분석할 스펀지 중앙을 클릭합니다. White Reference는 별도로 지정합니다.</p><p>4. 기존 분석 지표와 가중치(−1~1)를 설정한 뒤 색상을 추출합니다.</p><p>5–7. 실제 데이터로 지표를 비교하고 결과·품질을 확인한 뒤 CSV·Excel·ZIP·보고서를 저장합니다.</p><p>메뉴를 전환해도 영상·ROI·분석값은 유지됩니다. 상세 설정은 각 단계의 접기/펼치기에 있습니다.</p><p class="hint">지원 시 GPU로 읽으며 CPU 모드도 선택할 수 있습니다. 디코더별 픽셀 차이는 설정에 기록합니다. 이 프로그램은 화면에 보이는 스펀지 중 하나를 분석합니다.</p>';
+const help=uiEl('dialog');help.id='dashboardHelp';help.innerHTML='<div class="helpTop"><h2>NH₃ Sensor Analysis 사용 안내</h2><button id="dashHelpClose" aria-label="닫기">×</button></div><p>1. 원본 영상을 선택하고 순서를 확인합니다.</p><p>2. FPS·실험 시각·초기 White 구간을 설정합니다.</p><p>3. 스펀지 클릭 선택을 누르고 분석할 스펀지 중앙을 클릭합니다. White Reference는 별도로 지정합니다.</p><p>4. ROI 단계에서 색상을 추출한 뒤 분석 지표를 선택합니다.</p><p>5–7. 실제 데이터로 지표를 비교하고 결과·품질을 확인한 뒤 CSV·Excel·ZIP·보고서를 저장합니다.</p><p>메뉴를 전환해도 영상·ROI·분석값은 유지됩니다. 상세 설정은 각 단계의 접기/펼치기에 있습니다.</p><p class="hint">지원 시 GPU로 읽으며 CPU 모드도 선택할 수 있습니다. 디코더별 픽셀 차이는 설정에 기록합니다. 이 프로그램은 화면에 보이는 스펀지 중 하나를 분석합니다.</p>';
 document.body.append(help);$('dashHelpClose').onclick=()=>help.close();$('dashHelp').onclick=()=>help.showModal();$('dashStepHelp').onclick=()=>help.showModal();$('dashSettings').onclick=()=>setStep(2);
 const detail=uiEl('details');detail.className='summaryDetails';detail.append(uiEl('summary','ROI·보정·진행 상태 자세히'));const detailText=uiEl('p');detailText.id='dashSummaryDetail';detail.append(detailText);shell.querySelector('.dashboardSummary').append(detail);
 const dashboardConfigBase=config;config=function(){const c=dashboardConfigBase();if(dashboardLegacyPreferred)c.calibration_preference='legacy';return c;};
@@ -163,7 +142,6 @@ $('researchSettingsFile').onchange=async function(e){
  dashboardLegacyPreferred=false;await dashboardSettingsImport.call(this,e);
  if(selected&&(selected.calibration_preference==='legacy'||selected.calibration_mode==='legacy')&&!$('status').classList.contains('error')){dashboardLegacyPreferred=true;crApplyPolicy();if(rows.length)nativeRefresh();}refresh();
 };
-const oldTheme=setAppTheme;setAppTheme=function(){oldTheme('dark');document.documentElement.dataset.dashboardTheme='dark';};setAppTheme();
 // Keep axis labels readable at every viewport without touching curve values.
 const dashboardPlotBase=plot;plot=function(points){
  const canvas=$('plot'),ctx=canvas.getContext('2d'),fill=ctx.fillText,sx=canvas.clientWidth/canvas.width,sy=canvas.clientHeight/canvas.height;

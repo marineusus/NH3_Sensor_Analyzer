@@ -1,1 +1,0 @@
-const v2OriginalKeys=renderKeyMetrics;renderKeyMetrics=function(a){v2OriginalKeys(a);if(new Set(a.cycles.map(r=>v2GroupKey(r.concentration_ppm))).size>1){$('keyCV').textContent='농도별 비교';$('keyCV').title='서로 다른 농도의 반응폭을 하나의 CV로 비교하지 않습니다. 같은 농도 반복 비교 패널을 확인하세요.'}};
